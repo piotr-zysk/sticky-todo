@@ -1,0 +1,49 @@
+# Build output
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+[Ll]og/
+[Ll]ogs/
+x64/
+x86/
+[Aa][Rr][Mm]64/
+publish/
+artifacts/
+
+# User-specific files
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+.vs/
+
+# JetBrains Rider / IDEA
+.idea/
+*.sln.iml
+
+# VS Code
+.vscode/
+
+# NuGet
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+project.lock.json
+.nuget/
+
+# Test results / coverage
+[Tt]est[Rr]esult*/
+*.trx
+coverage*.xml
+*.coverage
+*.coveragexml
+
+# Misc
+*.log
+*.pdb
+*.tmp
+_ReSharper*/
+*.DotSettings.user
+.DS_Store
+Thumbs.db
