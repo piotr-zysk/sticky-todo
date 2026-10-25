@@ -160,6 +160,17 @@ public partial class MainWindow : Window
         foreach (var t in _tasks.ToList()) CommitTitle(t);
     }
 
+    void Window_PreviewTextInput(object sender, TextCompositionEventArgs e)
+    {
+        if (Keyboard.FocusedElement is TextBox || FindAncestor<TextBox>(e.OriginalSource as DependencyObject) != null) return;
+        if (string.IsNullOrEmpty(e.Text) || char.IsControl(e.Text[0])) return;
+        AddPanel.Visibility = Visibility.Visible;
+        NewTitle.Focus();
+        NewTitle.Text = e.Text;
+        NewTitle.CaretIndex = NewTitle.Text.Length;
+        e.Handled = true;
+    }
+
     void Window_Deactivated(object? sender, EventArgs e) => CommitAllEdits();
 
     void Due_Click(object sender, MouseButtonEventArgs e)

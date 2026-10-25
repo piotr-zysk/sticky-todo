@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:StickyTodo"
         PreviewMouseDown="Window_PreviewMouseDown" Deactivated="Window_Deactivated"
+        PreviewTextInput="Window_PreviewTextInput"
         Title="Sticky Todo" Icon="app.ico" Width="440" SizeToContent="Height" MinWidth="320"
         Topmost="True" WindowStyle="None" ResizeMode="CanResizeWithGrip"
         Background="#FFFFF2A8" BorderBrush="#FFD9C34F" BorderThickness="1"
