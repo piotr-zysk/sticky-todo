@@ -1,0 +1,230 @@
+<Window x:Class="StickyTodo.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:StickyTodo"
+        PreviewMouseDown="Window_PreviewMouseDown" Deactivated="Window_Deactivated"
+        Title="Sticky Todo" Icon="app.ico" Width="440" SizeToContent="Height" MinWidth="320"
+        Topmost="True" WindowStyle="None" ResizeMode="CanResizeWithGrip"
+        Background="#FFFFF2A8" BorderBrush="#FFD9C34F" BorderThickness="1"
+        FontFamily="Segoe UI" FontSize="13">
+    <Window.Resources>
+        <Style x:Key="FlatBtn" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Width" Value="28"/>
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#33000000"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="RowStyle" TargetType="ListBoxItem">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border Background="Transparent">
+                            <ContentPresenter/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <DataTemplate x:Key="TaskTemplate">
+            <Grid Height="24" Background="Transparent">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="18"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto" MinWidth="110"/>
+                </Grid.ColumnDefinitions>
+
+                <CheckBox Grid.Column="0" Margin="6,0,4,0" VerticalAlignment="Center"
+                          IsChecked="{Binding IsDone, Mode=TwoWay}"/>
+
+                <Border Grid.Column="1" Background="Transparent" Cursor="Hand" MouseLeftButtonUp="Priority_Click">
+                    <TextBlock Text="!" FontWeight="Bold" Foreground="#FFD00000"
+                               HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Hidden"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsHigh}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Border>
+
+                <Grid Grid.Column="2">
+                    <TextBlock Text="{Binding Title}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                               Cursor="IBeam" Background="Transparent" MouseLeftButtonUp="Title_Click">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="Black"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsOverdue}" Value="True">
+                                        <Setter Property="Foreground" Value="Red"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsDone}" Value="True">
+                                        <Setter Property="Foreground" Value="Gray"/>
+                                        <Setter Property="TextDecorations" Value="Strikethrough"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsEditingTitle}" Value="True">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <TextBox Padding="0,1" VerticalContentAlignment="Center" Margin="0,1" Text="{Binding EditTitle, UpdateSourceTrigger=PropertyChanged}"
+                             IsVisibleChanged="TitleBox_VisibleChanged" KeyDown="TitleBox_KeyDown" LostFocus="TitleBox_LostFocus">
+                        <TextBox.Style>
+                            <Style TargetType="TextBox">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsEditingTitle}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBox.Style>
+                    </TextBox>
+                </Grid>
+
+                <Grid Grid.Column="3" x:Name="DueHost">
+                    <TextBlock Text="{Binding DueText}" Margin="8,0,8,0" VerticalAlignment="Center"
+                               HorizontalAlignment="Right" Cursor="Hand" Background="Transparent"
+                               MouseLeftButtonUp="Due_Click">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="#FF444444"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding HasDue}" Value="False">
+                                        <Setter Property="Foreground" Value="#FF9A8F4D"/>
+                                        <Setter Property="FontStyle" Value="Italic"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsOverdue}" Value="True">
+                                        <Setter Property="Foreground" Value="Red"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <Popup IsOpen="{Binding IsEditingDue, Mode=TwoWay}" StaysOpen="False" Closed="DuePopup_Closed"
+                           PlacementTarget="{Binding ElementName=DueHost}" Placement="Bottom"
+                           AllowsTransparency="False">
+                        <Border Background="White" BorderBrush="#FF888888" BorderThickness="1" Padding="6">
+                            <StackPanel>
+                                <Calendar SelectedDate="{Binding EditDate, Mode=TwoWay}"
+                                          GotMouseCapture="Calendar_GotMouseCapture"/>
+                                <TextBlock Text="{Binding EditTimeText}" FontWeight="SemiBold" Margin="0,6,0,2"/>
+                                <ItemsControl ItemsSource="{x:Static local:Choices.Hours}">
+                                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="12"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate><DataTemplate>
+                                        <Button Content="{Binding}" Width="26" Height="22" Margin="1" Padding="0" Click="Hour_Click"
+                                                Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=ItemsControl}}"/>
+                                    </DataTemplate></ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <ItemsControl ItemsSource="{x:Static local:Choices.Minutes}" Margin="0,4,0,0">
+                                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="12"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate><DataTemplate>
+                                        <Button Content="{Binding}" Width="26" Height="22" Margin="1" Padding="0" Click="Minute_Click"
+                                                Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=ItemsControl}}"/>
+                                    </DataTemplate></ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,6,0,0">
+                                    <Button Content="No time" Padding="10,2" Margin="0,0,6,0" Click="NoTime_Click"
+                                            Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=StackPanel}}"/>
+                                    <Button Content="Clear date" Padding="10,2" Margin="0,0,6,0" Click="DueClear_Click"/>
+                                    <Button Content="OK" Padding="14,2" Click="DueOk_Click"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </Popup>
+                </Grid>
+
+                <Rectangle Grid.ColumnSpan="4" Height="2" Fill="#FF2060D0" VerticalAlignment="Top" IsHitTestVisible="False">
+                    <Rectangle.Style>
+                        <Style TargetType="Rectangle">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding DropMarker}" Value="-1">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Rectangle.Style>
+                </Rectangle>
+                <Rectangle Grid.ColumnSpan="4" Height="2" Fill="#FF2060D0" VerticalAlignment="Bottom" IsHitTestVisible="False">
+                    <Rectangle.Style>
+                        <Style TargetType="Rectangle">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding DropMarker}" Value="1">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Rectangle.Style>
+                </Rectangle>
+            </Grid>
+        </DataTemplate>
+    </Window.Resources>
+
+    <DockPanel>
+        <Grid DockPanel.Dock="Top" Height="26" Background="#FFF5E27A" MouseLeftButtonDown="TitleBar_MouseDown">
+            <TextBlock Text="To do" FontWeight="SemiBold" VerticalAlignment="Center" Margin="8,0,0,0" IsHitTestVisible="False"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Style="{StaticResource FlatBtn}" Content="+" FontWeight="Bold" ToolTip="Add task" Click="AddToggle_Click"/>
+                <Button Style="{StaticResource FlatBtn}" Content="&#x2013;" ToolTip="Minimize" Click="Minimize_Click"/>
+            </StackPanel>
+        </Grid>
+
+        <Border x:Name="AddPanel" DockPanel.Dock="Top" Visibility="Collapsed" Padding="8" Background="#FFFFF8CC"
+                BorderBrush="#FFD9C34F" BorderThickness="0,0,0,1">
+            <StackPanel>
+                <TextBox x:Name="NewTitle" TextChanged="NewTitle_TextChanged" KeyDown="NewTitle_KeyDown" Padding="2"/>
+                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                    <TextBlock Text="Date:" VerticalAlignment="Center"/>
+                    <DatePicker x:Name="NewDate" Margin="6,0,0,0" Width="120"/>
+                    <TextBlock Text="Time:" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                    <TextBox x:Name="NewTime" Width="55" Margin="6,0,0,0" Padding="2" ToolTip="HH:mm (optional)"/>
+                    <CheckBox x:Name="NewHigh" Content="High priority" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                    <Button x:Name="AddTopBtn" Content="Add on top" Padding="10,3" IsEnabled="False" Click="AddTop_Click"/>
+                    <Button x:Name="AddBottomBtn" Content="Add to bottom" Padding="10,3" Margin="6,0,0,0" IsEnabled="False" Click="AddBottom_Click"/>
+                    <Button Content="Cancel" Padding="10,3" Margin="6,0,0,0" Click="AddCancel_Click"/>
+                </StackPanel>
+                <TextBlock x:Name="AddError" Foreground="Red" Margin="0,4,0,0" Visibility="Collapsed"/>
+            </StackPanel>
+        </Border>
+
+        <ListBox x:Name="TaskList" Height="242" Background="Transparent" BorderThickness="0" Padding="0"
+                 ItemContainerStyle="{StaticResource RowStyle}" ItemTemplate="{StaticResource TaskTemplate}"
+                 ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                 ScrollViewer.CanContentScroll="False"
+                 AllowDrop="True" PreviewMouseLeftButtonDown="List_PreviewMouseDown" PreviewMouseMove="List_PreviewMouseMove"
+                 DragOver="List_DragOver" DragLeave="List_DragLeave" Drop="List_Drop"/>
+    </DockPanel>
+</Window>
