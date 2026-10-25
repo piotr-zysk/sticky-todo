@@ -24,6 +24,7 @@ public partial class MainWindow : Window
     TaskItem? _markedItem;
     const double ItemHeight = 24;
     const int MaxVisibleItems = 10;
+    const double TitleBarHeight = 26;
 
     public MainWindow()
     {
@@ -37,7 +38,27 @@ public partial class MainWindow : Window
         UpdateListHeight();
     }
 
-    void UpdateListHeight() => TaskList.Height = ItemHeight * Math.Clamp(_tasks.Count, 1, MaxVisibleItems);
+    void UpdateListHeight()
+    {
+        double want = ItemHeight * Math.Clamp(_tasks.Count, 1, MaxVisibleItems);
+        if (SizeToContent == SizeToContent.Manual)
+        {
+            if (!IsLoaded) return;
+            UpdateLayout();
+            double avail = RootDock.ActualHeight - TitleBarHeight - (AddPanel.IsVisible ? AddPanel.ActualHeight : 0);
+            TaskList.Height = Math.Min(want, Math.Max(ItemHeight, avail));
+        }
+        else
+        {
+            TaskList.Height = want;
+        }
+    }
+
+    void Window_SizeChanged(object sender, SizeChangedEventArgs e) =>
+        Dispatcher.BeginInvoke(UpdateListHeight, DispatcherPriority.Loaded);
+
+    void AddPanel_VisibilityChanged(object sender, DependencyPropertyChangedEventArgs e) =>
+        Dispatcher.BeginInvoke(UpdateListHeight, DispatcherPriority.Loaded);
 
     void Attach(TaskItem t, bool top)
     {

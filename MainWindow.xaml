@@ -6,6 +6,7 @@
         PreviewTextInput="Window_PreviewTextInput"
         Title="Sticky Todo" Icon="app.ico" Width="800" SizeToContent="Height" MinWidth="320"
         Topmost="True" WindowStyle="None" ResizeMode="CanResizeWithGrip"
+        SizeChanged="Window_SizeChanged"
         Background="#FFFFF2A8" BorderBrush="#FFD9C34F" BorderThickness="1"
         FontFamily="Segoe UI" FontSize="13">
     <Window.Resources>
@@ -192,7 +193,7 @@
         </DataTemplate>
     </Window.Resources>
 
-    <DockPanel>
+    <DockPanel x:Name="RootDock">
         <Grid DockPanel.Dock="Top" Height="26" Background="#FFF5E27A" MouseLeftButtonDown="TitleBar_MouseDown">
             <TextBlock Text="To do" FontWeight="SemiBold" VerticalAlignment="Center" Margin="8,0,0,0" IsHitTestVisible="False"/>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
@@ -202,7 +203,7 @@
         </Grid>
 
         <Border x:Name="AddPanel" DockPanel.Dock="Top" Visibility="Collapsed" Padding="8" Background="#FFFFF8CC"
-                BorderBrush="#FFD9C34F" BorderThickness="0,0,0,1">
+                BorderBrush="#FFD9C34F" BorderThickness="0,0,0,1" IsVisibleChanged="AddPanel_VisibilityChanged">
             <StackPanel>
                 <TextBox x:Name="NewTitle" TextChanged="NewTitle_TextChanged" KeyDown="NewTitle_KeyDown" Padding="2"/>
                 <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
@@ -226,6 +227,18 @@
                  ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                  ScrollViewer.CanContentScroll="False"
                  AllowDrop="True" PreviewMouseLeftButtonDown="List_PreviewMouseDown" PreviewMouseMove="List_PreviewMouseMove"
-                 DragOver="List_DragOver" DragLeave="List_DragLeave" Drop="List_Drop"/>
+                 DragOver="List_DragOver" DragLeave="List_DragLeave" Drop="List_Drop">
+            <ListBox.Template>
+                <ControlTemplate TargetType="ListBox">
+                    <ScrollViewer Padding="{TemplateBinding Padding}" Focusable="False"
+                                  Background="{TemplateBinding Background}"
+                                  VerticalScrollBarVisibility="{TemplateBinding ScrollViewer.VerticalScrollBarVisibility}"
+                                  HorizontalScrollBarVisibility="{TemplateBinding ScrollViewer.HorizontalScrollBarVisibility}"
+                                  CanContentScroll="{TemplateBinding ScrollViewer.CanContentScroll}">
+                        <ItemsPresenter SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                    </ScrollViewer>
+                </ControlTemplate>
+            </ListBox.Template>
+        </ListBox>
     </DockPanel>
 </Window>
