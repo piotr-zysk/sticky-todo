@@ -22,16 +22,22 @@ public partial class MainWindow : Window
     Point _dragStart;
     TaskItem? _dragItem;
     TaskItem? _markedItem;
+    const double ItemHeight = 24;
+    const int MaxVisibleItems = 10;
 
     public MainWindow()
     {
         InitializeComponent();
         foreach (var t in Storage.LoadTasks()) Attach(t, false);
         TaskList.ItemsSource = _tasks;
+        _tasks.CollectionChanged += (_, _) => UpdateListHeight();
         _overdueTimer.Tick += (_, _) => { foreach (var t in _tasks) t.RefreshOverdue(); };
         _overdueTimer.Start();
         Closing += OnClosing;
+        UpdateListHeight();
     }
+
+    void UpdateListHeight() => TaskList.Height = ItemHeight * Math.Clamp(_tasks.Count, 1, MaxVisibleItems);
 
     void Attach(TaskItem t, bool top)
     {
