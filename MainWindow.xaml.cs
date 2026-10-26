@@ -275,11 +275,25 @@ public partial class MainWindow : Window
         if (TagItem(sender) is not { } t || ((Button)sender).Content is not int h) return;
         t.EditHour = h;
         t.EditMinute ??= 0;
+        if (!t.EditDate.HasValue)
+        {
+            var now = DateTime.Now;
+            var time = new TimeSpan(h, t.EditMinute.Value, 0);
+            t.EditDate = now.Date.AddDays(time < now.TimeOfDay ? 1 : 0);
+        }
     }
 
     void Minute_Click(object sender, RoutedEventArgs e)
     {
         if (TagItem(sender) is not { } t || ((Button)sender).Content is not int m) return;
+        if (!t.EditDate.HasValue && !t.EditHour.HasValue)
+        {
+            var due = DateTime.Now.AddMinutes(m);
+            t.EditDate = due.Date;
+            t.EditHour = due.Hour;
+            t.EditMinute = due.Minute;
+            return;
+        }
         t.EditHour ??= 9;
         t.EditMinute = m;
     }

@@ -25,7 +25,8 @@ public class TaskItem : INotifyPropertyChanged
     public bool IsEditingDue { get => _editDue; set { _editDue = value; Raise(); } }
     public int DropMarker { get => _drop; set { _drop = value; Raise(); } }
 
-    public DateTime? EditDate { get; set; }
+    DateTime? _editDate;
+    public DateTime? EditDate { get => _editDate; set { _editDate = value; Raise(); } }
     string _editTitleText = "";
     public string EditTitle { get => _editTitleText; set { _editTitleText = value; Raise(); } }
     int? _eh, _em;
