@@ -350,20 +350,17 @@
         </Grid>
 
         <Border x:Name="AddPanel" DockPanel.Dock="Top" Visibility="Collapsed" Padding="12" Background="#FFFFF7D9" TextElement.Foreground="#FF353225"
-                BorderBrush="#FFE0CE88" BorderThickness="0,0,0,1" IsVisibleChanged="AddPanel_VisibilityChanged">
+                BorderBrush="#FFE0CE88" BorderThickness="0,0,0,1" IsVisibleChanged="AddPanel_VisibilityChanged"
+                PreviewKeyDown="AddPanel_PreviewKeyDown">
             <StackPanel>
-                <TextBlock Text="New task" FontWeight="SemiBold" FontSize="14" Margin="0,0,0,10"/>
-                <Label Content="Task" Target="{Binding ElementName=NewTitle}" Padding="0" Foreground="#FF716747" FontSize="12" Margin="0,0,0,5"/>
-                <TextBox x:Name="NewTitle" Height="32" TextChanged="NewTitle_TextChanged" KeyDown="NewTitle_KeyDown" AutomationProperties.Name="Task title"/>
+                <TextBox x:Name="NewTitle" Height="32" TextChanged="NewTitle_TextChanged" AutomationProperties.Name="Task title"/>
                 <WrapPanel Margin="0,10,0,0">
-                    <StackPanel Width="152" Margin="0,0,12,8">
-                        <Label Content="Due date (optional)" Target="{Binding ElementName=NewDate}" Padding="0" Foreground="#FF716747" FontSize="12" Margin="0,0,0,5"/>
+                    <StackPanel Width="152" Margin="0,0,8,0">
                         <DatePicker x:Name="NewDate" Height="32" AutomationProperties.Name="Due date, optional"/>
                     </StackPanel>
-                    <StackPanel Width="112" Margin="0,0,12,8">
-                        <Label Content="Time (optional)" Target="{Binding ElementName=NewTime}" Padding="0" Foreground="#FF716747" FontSize="12" Margin="0,0,0,5"/>
+                    <StackPanel Width="80" Margin="0,0,8,0">
                         <Grid>
-                            <TextBox x:Name="NewTime" Height="32" ToolTip="24-hour time: HH:mm" AutomationProperties.Name="Time, optional, HH:mm"/>
+                            <TextBox x:Name="NewTime" Height="32" LostFocus="NewTime_LostFocus" ToolTip="Time (optional): 19:00, 1900, 715, or 7" AutomationProperties.Name="Time, optional"/>
                             <TextBlock Text="HH:mm" Margin="10,0,0,0" Foreground="#FF99917A" VerticalAlignment="Center" IsHitTestVisible="False">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
@@ -374,12 +371,10 @@
                             </TextBlock>
                         </Grid>
                     </StackPanel>
-                    <CheckBox x:Name="NewHigh" Content="High priority" VerticalAlignment="Center" Margin="0,16,0,8"/>
-                </WrapPanel>
-                <WrapPanel Margin="0,4,0,0">
-                    <Button x:Name="AddTopBtn" Content="Add on top" Padding="10,6" Margin="0,0,6,6" IsEnabled="False" Click="AddTop_Click"/>
-                    <Button x:Name="AddBottomBtn" Content="Add to bottom" Padding="10,6" Margin="0,0,6,6" FontWeight="SemiBold" Background="#FFEEDD9A" BorderBrush="#FFD0B96C" IsEnabled="False" Click="AddBottom_Click"/>
-                    <Button Content="Cancel" Padding="10,6" Margin="0,0,0,6" Background="Transparent" Click="AddCancel_Click"/>
+                    <CheckBox x:Name="NewHigh" Content="High priority" Height="32" VerticalContentAlignment="Center" Margin="0,0,12,0"/>
+                    <Button x:Name="AddTopBtn" Content="Add on top" Padding="10,6" Margin="0,0,6,0" IsEnabled="False" Click="AddTop_Click"/>
+                    <Button x:Name="AddBottomBtn" Content="Add to bottom" Padding="10,6" Margin="0,0,6,0" FontWeight="SemiBold" Background="#FFEEDD9A" BorderBrush="#FFD0B96C" IsEnabled="False" Click="AddBottom_Click"/>
+                    <Button Content="Cancel" Padding="10,6" Background="Transparent" Click="AddCancel_Click"/>
                 </WrapPanel>
                 <TextBlock x:Name="AddError" Foreground="#FFAE332D" Margin="0,4,0,0" TextWrapping="Wrap" Visibility="Collapsed"/>
             </StackPanel>

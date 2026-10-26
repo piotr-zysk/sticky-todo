@@ -316,7 +316,7 @@ public partial class MainWindow : Window
         AddBottomBtn.IsEnabled = ok;
     }
 
-    void NewTitle_KeyDown(object sender, KeyEventArgs e)
+    void AddPanel_PreviewKeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key == Key.Enter && AddBottomBtn.IsEnabled) { AddNew(false); e.Handled = true; }
         else if (e.Key == Key.Escape) { CloseAddPanel(); e.Handled = true; }
@@ -325,23 +325,35 @@ public partial class MainWindow : Window
     void AddTop_Click(object sender, RoutedEventArgs e) => AddNew(true);
     void AddBottom_Click(object sender, RoutedEventArgs e) => AddNew(false);
 
+    void NewTime_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (TaskItem.TryParseTime(NewTime.Text, out var time))
+            NewTime.Text = time.ToString(@"hh\:mm");
+    }
+
     void AddNew(bool top)
     {
         var title = NewTitle.Text.Trim();
         if (title.Length == 0) return;
+        var date = NewDate.SelectedDate;
         TimeSpan? time = null;
-        if (NewDate.SelectedDate.HasValue && !string.IsNullOrWhiteSpace(NewTime.Text))
+        if (!string.IsNullOrWhiteSpace(NewTime.Text))
         {
             if (!TaskItem.TryParseTime(NewTime.Text, out var ts))
             {
-                AddError.Text = "Time must be in HH:mm format.";
+                AddError.Text = "Enter a valid time, such as 19:00, 1900, 715, or 7.";
                 AddError.Visibility = Visibility.Visible;
                 return;
             }
             time = ts;
+            if (!date.HasValue)
+            {
+                var now = DateTime.Now;
+                date = now.Date.AddDays(ts < now.TimeOfDay ? 1 : 0);
+            }
         }
         var t = new TaskItem { Title = title, IsHigh = NewHigh.IsChecked == true };
-        t.SetDue(NewDate.SelectedDate, time);
+        t.SetDue(date, time);
         Attach(t, top);
         Save();
         CloseAddPanel();

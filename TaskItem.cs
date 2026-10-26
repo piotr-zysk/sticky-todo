@@ -65,7 +65,10 @@ public class TaskItem : INotifyPropertyChanged
     public static bool TryParseTime(string text, out TimeSpan ts)
     {
         ts = default;
-        return TimeSpan.TryParseExact(text.Trim(), new[] { @"h\:mm", @"hh\:mm" }, CultureInfo.InvariantCulture, out ts)
+        text = text.Trim();
+        if (text.Length is >= 1 and <= 4 && text.All(c => c is >= '0' and <= '9'))
+            text = text.Length <= 2 ? text + ":00" : text.Insert(text.Length - 2, ":");
+        return TimeSpan.TryParseExact(text, new[] { @"h\:mm", @"hh\:mm" }, CultureInfo.InvariantCulture, out ts)
                && ts >= TimeSpan.Zero && ts < TimeSpan.FromHours(24);
     }
 }
