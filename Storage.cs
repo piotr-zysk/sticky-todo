@@ -18,6 +18,25 @@ public static class Storage
     static readonly string Dir = Path.GetDirectoryName(Environment.ProcessPath) ?? AppContext.BaseDirectory;
     public static readonly string TasksPath = Path.Combine(Dir, "tasks.yaml");
     public static readonly string ArchivePath = Path.Combine(Dir, "task-archive.yaml");
+    public static readonly string SettingsPath = Path.Combine(Dir, "settings.yaml");
+
+    public static AppearanceSettings LoadSettings()
+    {
+        try
+        {
+            return File.Exists(SettingsPath)
+                ? Deser.Deserialize<AppearanceSettings>(File.ReadAllText(SettingsPath)) ?? new()
+                : new();
+        }
+        catch { return new(); }
+    }
+
+    public static void SaveSettings(AppearanceSettings settings)
+    {
+        var tmp = SettingsPath + ".tmp";
+        File.WriteAllText(tmp, Ser.Serialize(settings));
+        File.Move(tmp, SettingsPath, true);
+    }
 
     static readonly ISerializer Ser = new SerializerBuilder()
         .WithNamingConvention(CamelCaseNamingConvention.Instance)

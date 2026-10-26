@@ -18,6 +18,7 @@ public static class Choices
 public partial class MainWindow : Window
 {
     readonly ObservableCollection<TaskItem> _tasks = new();
+    AppearanceSettings _settings = new();
     readonly DispatcherTimer _overdueTimer = new() { Interval = TimeSpan.FromSeconds(30) };
     Point _dragStart;
     TaskItem? _dragItem;
@@ -28,6 +29,8 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        _settings = Storage.LoadSettings();
+        ApplyAppearance(_settings);
         foreach (var t in Storage.LoadTasks()) Attach(t, false);
         TaskList.ItemsSource = _tasks;
         _tasks.CollectionChanged += (_, _) => UpdateListHeight();
@@ -130,6 +133,32 @@ public partial class MainWindow : Window
     }
 
     void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+
+    void ApplyAppearance(AppearanceSettings settings)
+    {
+        Color color;
+        try { color = (Color)ColorConverter.ConvertFromString(settings.BackgroundColor); }
+        catch { color = Color.FromRgb(249, 237, 181); }
+        color.A = 255;
+        settings.BackgroundColor = $"#{color.R:X2}{color.G:X2}{color.B:X2}";
+        settings.Opacity = double.IsFinite(settings.Opacity) ? Math.Clamp(settings.Opacity, 0.2, 1) : 1;
+        Background = new SolidColorBrush(color);
+        HeaderBar.Background = new SolidColorBrush(Color.FromRgb(
+            (byte)(color.R * 0.95), (byte)(color.G * 0.95), (byte)(color.B * 0.95)));
+        var foreground = new SolidColorBrush(
+            color.R * 0.299 + color.G * 0.587 + color.B * 0.114 < 140 ? Colors.White : Color.FromRgb(53, 50, 37));
+        Foreground = foreground;
+        Resources["TaskForeground"] = foreground;
+        Opacity = settings.Opacity;
+    }
+
+    void Settings_Click(object sender, RoutedEventArgs e)
+    {
+        CommitAllEdits();
+        var dialog = new SettingsWindow(_settings, ApplyAppearance) { Owner = this };
+        if (dialog.ShowDialog() == true) _settings = dialog.Settings;
+        ApplyAppearance(_settings);
+    }
 
     void Priority_Click(object sender, MouseButtonEventArgs e)
     {

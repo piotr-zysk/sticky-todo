@@ -5,7 +5,7 @@
         PreviewMouseDown="Window_PreviewMouseDown" Deactivated="Window_Deactivated"
         PreviewTextInput="Window_PreviewTextInput"
         Title="Sticky Todo" Icon="app.ico" Width="800" SizeToContent="Height" MinWidth="320"
-        Topmost="True" WindowStyle="None" ResizeMode="CanResizeWithGrip"
+        Topmost="True" WindowStyle="None" AllowsTransparency="True" ResizeMode="CanResizeWithGrip"
         SizeChanged="Window_SizeChanged"
         Background="#FFF9EDB5" BorderBrush="#FFE0CE88" BorderThickness="1"
         UseLayoutRounding="True" SnapsToDevicePixels="True"
@@ -15,6 +15,7 @@
                       CornerRadius="0" UseAeroCaptionButtons="False"/>
     </WindowChrome.WindowChrome>
     <Window.Resources>
+        <SolidColorBrush x:Key="TaskForeground" Color="Black"/>
         <SolidColorBrush x:Key="InputSurface" Color="#FFFFFCF0"/>
         <SolidColorBrush x:Key="ControlBorder" Color="#FFD9CFAC"/>
         <SolidColorBrush x:Key="Accent" Color="#FF80651C"/>
@@ -215,7 +216,7 @@
                                Cursor="IBeam" Background="Transparent" MouseLeftButtonUp="Title_Click">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">
-                                <Setter Property="Foreground" Value="Black"/>
+                                <Setter Property="Foreground" Value="{DynamicResource TaskForeground}"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsOverdue}" Value="True">
                                         <Setter Property="Foreground" Value="Red"/>
@@ -331,11 +332,24 @@
             <TextBlock Text="To do" FontWeight="SemiBold" VerticalAlignment="Center" Margin="12,0,0,0" IsHitTestVisible="False"/>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                 <Button Style="{StaticResource FlatBtn}" Content="+" FontWeight="Bold" ToolTip="Add task" Click="AddToggle_Click"/>
+                <Button Style="{StaticResource FlatBtn}" ToolTip="Settings" AutomationProperties.Name="Settings" Click="Settings_Click">
+                    <StackPanel VerticalAlignment="Center">
+                        <StackPanel.RenderTransform>
+                            <TranslateTransform Y="2"/>
+                        </StackPanel.RenderTransform>
+                        <StackPanel.LayoutTransform>
+                            <ScaleTransform ScaleX="0.7" ScaleY="0.7"/>
+                        </StackPanel.LayoutTransform>
+                        <Ellipse Width="3" Height="3" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                        <Ellipse Width="3" Height="3" Margin="0,3" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                        <Ellipse Width="3" Height="3" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                    </StackPanel>
+                </Button>
                 <Button Style="{StaticResource FlatBtn}" Content="&#x2013;" ToolTip="Minimize" Click="Minimize_Click"/>
             </StackPanel>
         </Grid>
 
-        <Border x:Name="AddPanel" DockPanel.Dock="Top" Visibility="Collapsed" Padding="12" Background="#FFFFF7D9"
+        <Border x:Name="AddPanel" DockPanel.Dock="Top" Visibility="Collapsed" Padding="12" Background="#FFFFF7D9" TextElement.Foreground="#FF353225"
                 BorderBrush="#FFE0CE88" BorderThickness="0,0,0,1" IsVisibleChanged="AddPanel_VisibilityChanged">
             <StackPanel>
                 <TextBlock Text="New task" FontWeight="SemiBold" FontSize="14" Margin="0,0,0,10"/>
