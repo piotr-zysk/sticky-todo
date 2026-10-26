@@ -7,26 +7,159 @@
         Title="Sticky Todo" Icon="app.ico" Width="800" SizeToContent="Height" MinWidth="320"
         Topmost="True" WindowStyle="None" ResizeMode="CanResizeWithGrip"
         SizeChanged="Window_SizeChanged"
-        Background="#FFFFF2A8" BorderBrush="#FFD9C34F" BorderThickness="1"
-        FontFamily="Segoe UI" FontSize="13">
+        Background="#FFF9EDB5" BorderBrush="#FFE0CE88" BorderThickness="1"
+        UseLayoutRounding="True" SnapsToDevicePixels="True"
+        FontFamily="Segoe UI" FontSize="13" Foreground="#FF353225">
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="0" ResizeBorderThickness="5" GlassFrameThickness="0"
+                      CornerRadius="0" UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
     <Window.Resources>
+        <SolidColorBrush x:Key="InputSurface" Color="#FFFFFCF0"/>
+        <SolidColorBrush x:Key="ControlBorder" Color="#FFD9CFAC"/>
+        <SolidColorBrush x:Key="Accent" Color="#FF80651C"/>
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource InputSurface}"/>
+            <Setter Property="Foreground" Value="#FF353225"/>
+            <Setter Property="BorderBrush" Value="{StaticResource ControlBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="MinHeight" Value="32"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Surface" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6">
+                            <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="Background" Value="#FFF0E4BA"/></Trigger>
+                            <Trigger Property="IsPressed" Value="True"><Setter TargetName="Surface" Property="Background" Value="#FFE5D59E"/></Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="{StaticResource Accent}"/></Trigger>
+                            <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Surface" Property="Opacity" Value="0.45"/></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="{StaticResource InputSurface}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource ControlBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="9,5"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="Surface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6">
+                            <ScrollViewer x:Name="PART_ContentHost"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="#FFB5A471"/></Trigger>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="{StaticResource Accent}"/></Trigger>
+                            <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Surface" Property="Opacity" Value="0.45"/></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="Calendar">
+            <Setter Property="Background" Value="{StaticResource InputSurface}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource ControlBorder}"/>
+            <Setter Property="Foreground" Value="#FF353225"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="CalendarDayButtonStyle">
+                <Setter.Value>
+                    <Style TargetType="CalendarDayButton">
+                        <Setter Property="FontSize" Value="12"/>
+                        <Setter Property="MinWidth" Value="28"/>
+                        <Setter Property="MinHeight" Value="28"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="CalendarDayButton">
+                                    <Border x:Name="Day" Background="Transparent" CornerRadius="5" BorderThickness="1" BorderBrush="Transparent" Margin="1">
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsInactive" Value="True"><Setter Property="Foreground" Value="#FF9B9688"/></Trigger>
+                                        <Trigger Property="IsToday" Value="True"><Setter TargetName="Day" Property="BorderBrush" Value="{StaticResource Accent}"/></Trigger>
+                                        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Day" Property="Background" Value="#FFF0E4BA"/></Trigger>
+                                        <Trigger Property="IsSelected" Value="True"><Setter TargetName="Day" Property="Background" Value="{StaticResource Accent}"/><Setter Property="Foreground" Value="White"/></Trigger>
+                                        <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Day" Property="BorderBrush" Value="#FF353225"/></Trigger>
+                                        <Trigger Property="IsBlackedOut" Value="True"><Setter Property="Opacity" Value="0.35"/></Trigger>
+                                        <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.35"/></Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="DatePicker">
+            <Setter Property="Background" Value="{StaticResource InputSurface}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource ControlBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="CalendarStyle" Value="{StaticResource {x:Type Calendar}}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DatePicker">
+                        <Border x:Name="Surface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6" Padding="6,0,2,0">
+                            <Grid x:Name="PART_Root">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="30"/></Grid.ColumnDefinitions>
+                                <DatePickerTextBox x:Name="PART_TextBox" Background="Transparent" BorderThickness="0" Padding="2,4" VerticalContentAlignment="Center" Focusable="True">
+                                    <DatePickerTextBox.Template>
+                                        <ControlTemplate TargetType="DatePickerTextBox">
+                                            <Grid Margin="{TemplateBinding Padding}">
+                                                <ScrollViewer x:Name="PART_ContentHost"/>
+                                                <ContentControl x:Name="PART_Watermark" Foreground="#FF99917A" VerticalAlignment="Center" IsHitTestVisible="False" Focusable="False" Visibility="Collapsed"/>
+                                            </Grid>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="Text" Value=""><Setter TargetName="PART_Watermark" Property="Visibility" Value="Visible"/></Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </DatePickerTextBox.Template>
+                                </DatePickerTextBox>
+                                <Button x:Name="PART_Button" Grid.Column="1" Background="Transparent" BorderThickness="0" Padding="5" MinHeight="0" Focusable="False" ToolTip="Choose date" AutomationProperties.Name="Choose date">
+                                    <Path Width="14" Height="14" Stretch="Uniform" Stroke="#FF716747" StrokeThickness="1.4"
+                                          Data="M 1,3 L 13,3 13,13 1,13 Z M 1,6 L 13,6 M 4,1 L 4,4 M 10,1 L 10,4"/>
+                                </Button>
+                                <Popup x:Name="PART_Popup" Placement="Bottom" PlacementTarget="{Binding ElementName=PART_Root}" StaysOpen="False" AllowsTransparency="True"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="#FFB5A471"/></Trigger>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="{StaticResource Accent}"/></Trigger>
+                            <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Surface" Property="Opacity" Value="0.45"/></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <Style x:Key="FlatBtn" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Width" Value="28"/>
-            <Setter Property="Height" Value="24"/>
+            <Setter Property="Width" Value="32"/>
+            <Setter Property="Height" Value="32"/>
             <Setter Property="FontSize" Value="16"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" Background="{TemplateBinding Background}">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="5" BorderThickness="1" BorderBrush="Transparent">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="bd" Property="Background" Value="#33000000"/>
                             </Trigger>
+                            <Trigger Property="IsPressed" Value="True"><Setter TargetName="bd" Property="Background" Value="#44000000"/></Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource Accent}"/></Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
@@ -135,7 +268,7 @@
                     <Popup IsOpen="{Binding IsEditingDue, Mode=TwoWay}" StaysOpen="False" Closed="DuePopup_Closed"
                            PlacementTarget="{Binding ElementName=DueHost}" Placement="Bottom"
                            AllowsTransparency="False">
-                        <Border Background="White" BorderBrush="#FF888888" BorderThickness="1" Padding="6">
+                        <Border Background="{StaticResource InputSurface}" BorderBrush="{StaticResource ControlBorder}" BorderThickness="1" Padding="10" CornerRadius="6">
                             <StackPanel>
                                 <Calendar SelectedDate="{Binding EditDate, Mode=TwoWay}"
                                           GotMouseCapture="Calendar_GotMouseCapture"/>
@@ -143,14 +276,14 @@
                                 <ItemsControl ItemsSource="{x:Static local:Choices.Hours}">
                                     <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="12"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate><DataTemplate>
-                                        <Button Content="{Binding}" Width="26" Height="22" Margin="1" Padding="0" Click="Hour_Click"
+                                        <Button Content="{Binding}" Width="26" Height="26" MinHeight="0" Margin="1" Padding="0" Click="Hour_Click"
                                                 Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=ItemsControl}}"/>
                                     </DataTemplate></ItemsControl.ItemTemplate>
                                 </ItemsControl>
                                 <ItemsControl ItemsSource="{x:Static local:Choices.Minutes}" Margin="0,4,0,0">
                                     <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="12"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate><DataTemplate>
-                                        <Button Content="{Binding}" Width="26" Height="22" Margin="1" Padding="0" Click="Minute_Click"
+                                        <Button Content="{Binding}" Width="26" Height="26" MinHeight="0" Margin="1" Padding="0" Click="Minute_Click"
                                                 Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=ItemsControl}}"/>
                                     </DataTemplate></ItemsControl.ItemTemplate>
                                 </ItemsControl>
@@ -194,31 +327,47 @@
     </Window.Resources>
 
     <DockPanel x:Name="RootDock">
-        <Grid DockPanel.Dock="Top" Height="26" Background="#FFF5E27A" MouseLeftButtonDown="TitleBar_MouseDown">
-            <TextBlock Text="To do" FontWeight="SemiBold" VerticalAlignment="Center" Margin="8,0,0,0" IsHitTestVisible="False"/>
+        <Grid x:Name="HeaderBar" DockPanel.Dock="Top" Height="32" Background="#FFEEDD9A" MouseLeftButtonDown="TitleBar_MouseDown">
+            <TextBlock Text="To do" FontWeight="SemiBold" VerticalAlignment="Center" Margin="12,0,0,0" IsHitTestVisible="False"/>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                 <Button Style="{StaticResource FlatBtn}" Content="+" FontWeight="Bold" ToolTip="Add task" Click="AddToggle_Click"/>
                 <Button Style="{StaticResource FlatBtn}" Content="&#x2013;" ToolTip="Minimize" Click="Minimize_Click"/>
             </StackPanel>
         </Grid>
 
-        <Border x:Name="AddPanel" DockPanel.Dock="Top" Visibility="Collapsed" Padding="8" Background="#FFFFF8CC"
-                BorderBrush="#FFD9C34F" BorderThickness="0,0,0,1" IsVisibleChanged="AddPanel_VisibilityChanged">
+        <Border x:Name="AddPanel" DockPanel.Dock="Top" Visibility="Collapsed" Padding="12" Background="#FFFFF7D9"
+                BorderBrush="#FFE0CE88" BorderThickness="0,0,0,1" IsVisibleChanged="AddPanel_VisibilityChanged">
             <StackPanel>
-                <TextBox x:Name="NewTitle" TextChanged="NewTitle_TextChanged" KeyDown="NewTitle_KeyDown" Padding="2"/>
-                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                    <TextBlock Text="Date:" VerticalAlignment="Center"/>
-                    <DatePicker x:Name="NewDate" Margin="6,0,0,0" Width="120"/>
-                    <TextBlock Text="Time:" VerticalAlignment="Center" Margin="10,0,0,0"/>
-                    <TextBox x:Name="NewTime" Width="55" Margin="6,0,0,0" Padding="2" ToolTip="HH:mm (optional)"/>
-                    <CheckBox x:Name="NewHigh" Content="High priority" VerticalAlignment="Center" Margin="12,0,0,0"/>
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                    <Button x:Name="AddTopBtn" Content="Add on top" Padding="10,3" IsEnabled="False" Click="AddTop_Click"/>
-                    <Button x:Name="AddBottomBtn" Content="Add to bottom" Padding="10,3" Margin="6,0,0,0" IsEnabled="False" Click="AddBottom_Click"/>
-                    <Button Content="Cancel" Padding="10,3" Margin="6,0,0,0" Click="AddCancel_Click"/>
-                </StackPanel>
-                <TextBlock x:Name="AddError" Foreground="Red" Margin="0,4,0,0" Visibility="Collapsed"/>
+                <TextBlock Text="New task" FontWeight="SemiBold" FontSize="14" Margin="0,0,0,10"/>
+                <Label Content="Task" Target="{Binding ElementName=NewTitle}" Padding="0" Foreground="#FF716747" FontSize="12" Margin="0,0,0,5"/>
+                <TextBox x:Name="NewTitle" Height="32" TextChanged="NewTitle_TextChanged" KeyDown="NewTitle_KeyDown" AutomationProperties.Name="Task title"/>
+                <WrapPanel Margin="0,10,0,0">
+                    <StackPanel Width="152" Margin="0,0,12,8">
+                        <Label Content="Due date (optional)" Target="{Binding ElementName=NewDate}" Padding="0" Foreground="#FF716747" FontSize="12" Margin="0,0,0,5"/>
+                        <DatePicker x:Name="NewDate" Height="32" AutomationProperties.Name="Due date, optional"/>
+                    </StackPanel>
+                    <StackPanel Width="112" Margin="0,0,12,8">
+                        <Label Content="Time (optional)" Target="{Binding ElementName=NewTime}" Padding="0" Foreground="#FF716747" FontSize="12" Margin="0,0,0,5"/>
+                        <Grid>
+                            <TextBox x:Name="NewTime" Height="32" ToolTip="24-hour time: HH:mm" AutomationProperties.Name="Time, optional, HH:mm"/>
+                            <TextBlock Text="HH:mm" Margin="10,0,0,0" Foreground="#FF99917A" VerticalAlignment="Center" IsHitTestVisible="False">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers><DataTrigger Binding="{Binding Text, ElementName=NewTime}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Grid>
+                    </StackPanel>
+                    <CheckBox x:Name="NewHigh" Content="High priority" VerticalAlignment="Center" Margin="0,16,0,8"/>
+                </WrapPanel>
+                <WrapPanel Margin="0,4,0,0">
+                    <Button x:Name="AddTopBtn" Content="Add on top" Padding="10,6" Margin="0,0,6,6" IsEnabled="False" Click="AddTop_Click"/>
+                    <Button x:Name="AddBottomBtn" Content="Add to bottom" Padding="10,6" Margin="0,0,6,6" FontWeight="SemiBold" Background="#FFEEDD9A" BorderBrush="#FFD0B96C" IsEnabled="False" Click="AddBottom_Click"/>
+                    <Button Content="Cancel" Padding="10,6" Margin="0,0,0,6" Background="Transparent" Click="AddCancel_Click"/>
+                </WrapPanel>
+                <TextBlock x:Name="AddError" Foreground="#FFAE332D" Margin="0,4,0,0" TextWrapping="Wrap" Visibility="Collapsed"/>
             </StackPanel>
         </Border>
 

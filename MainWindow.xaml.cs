@@ -24,7 +24,6 @@ public partial class MainWindow : Window
     TaskItem? _markedItem;
     const double ItemHeight = 24;
     const int MaxVisibleItems = 10;
-    const double TitleBarHeight = 26;
 
     public MainWindow()
     {
@@ -45,7 +44,7 @@ public partial class MainWindow : Window
         {
             if (!IsLoaded) return;
             UpdateLayout();
-            double avail = RootDock.ActualHeight - TitleBarHeight - (AddPanel.IsVisible ? AddPanel.ActualHeight : 0);
+            double avail = RootDock.ActualHeight - HeaderBar.ActualHeight - (AddPanel.IsVisible ? AddPanel.ActualHeight : 0);
             TaskList.Height = Math.Min(want, Math.Max(ItemHeight, avail));
         }
         else
