@@ -22,6 +22,7 @@ public partial class SettingsWindow : Window
             Opacity = settings.Opacity,
             ItemDeleteRetentionSeconds = settings.ItemDeleteRetentionSeconds,
             MaxItemsToDisplay = settings.MaxItemsToDisplay,
+            DetailsAutoSaveIntervalSeconds = settings.DetailsAutoSaveIntervalSeconds,
             BoldHighPriority = settings.BoldHighPriority
         };
         _preview = preview;
@@ -93,6 +94,7 @@ public partial class SettingsWindow : Window
         OpacitySlider.Value = Settings.Opacity * 100;
         DeleteRetentionSeconds.Text = Settings.ItemDeleteRetentionSeconds.ToString(CultureInfo.InvariantCulture);
         MaxItemsToDisplay.Text = Settings.MaxItemsToDisplay.ToString(CultureInfo.InvariantCulture);
+        DetailsAutoSaveIntervalSeconds.Text = Settings.DetailsAutoSaveIntervalSeconds.ToString(CultureInfo.InvariantCulture);
         BoldHighPriority.IsChecked = Settings.BoldHighPriority;
         _updating = false;
         UpdateValidation();
@@ -143,11 +145,12 @@ public partial class SettingsWindow : Window
     void NumericSettings_Changed(object sender, TextChangedEventArgs e)
     {
         if (_updating || !IsInitialized) return;
-        bool valid = TryReadNumericSettings(out var retention, out var maxItems);
+        bool valid = TryReadNumericSettings(out var retention, out var maxItems, out var autoSaveInterval);
         UpdateValidation();
         if (!valid) return;
         Settings.ItemDeleteRetentionSeconds = retention;
         Settings.MaxItemsToDisplay = maxItems;
+        Settings.DetailsAutoSaveIntervalSeconds = autoSaveInterval;
         _preview(Settings);
     }
 
@@ -159,11 +162,12 @@ public partial class SettingsWindow : Window
         _preview(Settings);
     }
 
-    bool TryReadNumericSettings(out int retention, out int maxItems)
+    bool TryReadNumericSettings(out int retention, out int maxItems, out int autoSaveInterval)
     {
         bool validRetention = int.TryParse(DeleteRetentionSeconds.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out retention) && retention >= 0;
         bool validMaxItems = int.TryParse(MaxItemsToDisplay.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out maxItems) && maxItems is >= 1 and <= 100;
-        return validRetention && validMaxItems;
+        bool validAutoSave = int.TryParse(DetailsAutoSaveIntervalSeconds.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out autoSaveInterval) && autoSaveInterval is >= 0 and <= 3600;
+        return validRetention && validMaxItems && validAutoSave;
     }
 
     void UpdateValidation()
@@ -172,10 +176,12 @@ public partial class SettingsWindow : Window
             uint.TryParse(HexColor.Text.AsSpan(1), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out _);
         bool validRetention = int.TryParse(DeleteRetentionSeconds.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var retention) && retention >= 0;
         bool validMaxItems = int.TryParse(MaxItemsToDisplay.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var maxItems) && maxItems is >= 1 and <= 100;
+        bool validAutoSave = int.TryParse(DetailsAutoSaveIntervalSeconds.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var autoSaveInterval) && autoSaveInterval is >= 0 and <= 3600;
         ColorError.Visibility = validColor ? Visibility.Collapsed : Visibility.Visible;
         RetentionError.Visibility = validRetention ? Visibility.Collapsed : Visibility.Visible;
         MaxItemsError.Visibility = validMaxItems ? Visibility.Collapsed : Visibility.Visible;
-        SaveButton.IsEnabled = validColor && validRetention && validMaxItems;
+        AutoSaveIntervalError.Visibility = validAutoSave ? Visibility.Collapsed : Visibility.Visible;
+        SaveButton.IsEnabled = validColor && validRetention && validMaxItems && validAutoSave;
     }
 
     void DefaultColor_Click(object sender, RoutedEventArgs e)

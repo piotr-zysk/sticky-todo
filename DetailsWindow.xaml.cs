@@ -19,8 +19,21 @@ public partial class DetailsWindow : Window
         DataContext = task;
         _session = session;
         Editor.Text = session.Text;
-        Editor.TextChanged += (_, _) => { if (_replacing) return; _session.Edit(Editor.Text); SaveAndSchedule(); };
+        task.HasDetails = !string.IsNullOrWhiteSpace(session.Text);
+        Editor.TextChanged += (_, _) =>
+        {
+            if (_replacing) return;
+            _session.Edit(Editor.Text);
+            ((TaskItem)DataContext).HasDetails = !string.IsNullOrWhiteSpace(_session.Text);
+            SaveAndSchedule();
+        };
         _saveTimer.Tick += (_, _) => SaveAndSchedule();
+        PreviewKeyDown += (_, e) =>
+        {
+            if (e.Key != Key.Escape) return;
+            e.Handled = true;
+            Close();
+        };
         Closing += OnClosing;
         Closed += (_, _) => _saveTimer.Stop();
         Loaded += (_, _) => Editor.Focus();
@@ -34,13 +47,14 @@ public partial class DetailsWindow : Window
         {
             MessageBox.Show(this, $"Could not save task details. Your text is still open.\n\n{ex.Message}", "Save failed", MessageBoxButton.OK, MessageBoxImage.Error);
         }
-        if (_session.IsDirty && !_session.IsDiscarded)
+        if (_session.IsDirty && !_session.IsDiscarded && _session.SaveDelay is { } delay)
         {
-            var delay = _session.SaveDelay;
-            _saveTimer.Interval = delay > TimeSpan.Zero ? delay : TimeSpan.FromMinutes(1);
+            _saveTimer.Interval = delay > TimeSpan.Zero ? delay : TimeSpan.FromSeconds(_session.AutoSaveIntervalSeconds);
             _saveTimer.Start();
         }
     }
+
+    public void RescheduleAutoSave() => SaveAndSchedule();
 
     public void Flush() => _session.Save(force: true);
 
@@ -49,6 +63,7 @@ public partial class DetailsWindow : Window
         _saveTimer.Stop();
         _session.Replace(text);
         DataContext = task;
+        task.HasDetails = !string.IsNullOrWhiteSpace(text);
         _replacing = true;
         try { Editor.Text = text; }
         finally { _replacing = false; }

@@ -128,7 +128,12 @@ public static class Storage
     {
         InitializeTaskStorage();
         MigrateRecords();
-        return Read(TasksPath).Where(d => !string.IsNullOrWhiteSpace(d.Title)).Select(ToTask).ToList();
+        return Read(TasksPath).Where(d => !string.IsNullOrWhiteSpace(d.Title)).Select(d =>
+        {
+            var task = ToTask(d);
+            task.HasDetails = !string.IsNullOrWhiteSpace(LoadDetails(task.Id));
+            return task;
+        }).ToList();
     }
 
     static void MigrateRecords()

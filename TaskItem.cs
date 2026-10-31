@@ -18,7 +18,7 @@ public class TaskItem : INotifyPropertyChanged
     string _title = "";
     DateTime? _date;
     TimeSpan? _time;
-    bool _high, _done, _editTitle, _editDue;
+    bool _high, _done, _editTitle, _editDue, _hasDetails;
     int _drop;
 
     public DispatcherTimer? RemoveTimer;
@@ -31,6 +31,7 @@ public class TaskItem : INotifyPropertyChanged
     public bool IsDone { get => _done; set { if (_done == value) return; _done = value; Touch(); Raise(); Raise(nameof(IsOverdue)); } }
     public bool IsEditingTitle { get => _editTitle; set { _editTitle = value; Raise(); } }
     public bool IsEditingDue { get => _editDue; set { _editDue = value; Raise(); } }
+    public bool HasDetails { get => _hasDetails; set { if (_hasDetails == value) return; _hasDetails = value; Raise(); } }
     public int DropMarker { get => _drop; set { _drop = value; Raise(); } }
 
     DateTime? _editDate;

@@ -268,7 +268,12 @@ public partial class MainWindow : Window
     {
         foreach (var task in _tasks) task.PropertyChanged -= OnItemChanged;
         _tasks.Clear();
-        foreach (var record in snapshot.Tasks.Where(t => !t.CompletedAt.HasValue)) Attach(Storage.ToTask(record), false);
+        foreach (var record in snapshot.Tasks.Where(t => !t.CompletedAt.HasValue))
+        {
+            var task = Storage.ToTask(record);
+            task.HasDetails = !string.IsNullOrWhiteSpace(record.Details);
+            Attach(task, false);
+        }
         var active = _tasks.ToDictionary(t => t.Id);
         foreach (var pair in _detailsWindows.ToList())
         {
@@ -310,7 +315,10 @@ public partial class MainWindow : Window
             {
                 var id = task.Id;
                 session = new DetailsSaveSession(Storage.LoadDetails(id), text =>
-                    Storage.SaveTaskDetails(_tasks.Single(t => t.Id == id), text, _tasks));
+                    Storage.SaveTaskDetails(_tasks.Single(t => t.Id == id), text, _tasks))
+                {
+                    AutoSaveIntervalSeconds = _settings.DetailsAutoSaveIntervalSeconds
+                };
                 _detailsSessions.Add(task.Id, session);
             }
             var note = new DetailsWindow(task, session) { Owner = this, WindowStartupLocation = WindowStartupLocation.CenterOwner };
@@ -367,6 +375,12 @@ public partial class MainWindow : Window
         Opacity = settings.Opacity;
         foreach (var note in _detailsWindows.Values)
             note.ApplyAppearance(Background, HeaderBar.Background, Foreground, Opacity);
+        foreach (var pair in _detailsSessions.ToList())
+        {
+            if (pair.Value.AutoSaveIntervalSeconds == settings.DetailsAutoSaveIntervalSeconds) continue;
+            pair.Value.AutoSaveIntervalSeconds = settings.DetailsAutoSaveIntervalSeconds;
+            if (_detailsWindows.TryGetValue(pair.Key, out var note)) note.RescheduleAutoSave();
+        }
         UpdateListHeight();
     }
 
