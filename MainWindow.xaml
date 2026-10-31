@@ -212,12 +212,16 @@
                 </Border>
 
                 <Grid Grid.Column="2">
-                    <TextBlock Text="{Binding Title}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                    <TextBlock x:Name="TaskTitle" Text="{Binding Title}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                Cursor="IBeam" Background="Transparent" MouseLeftButtonUp="Title_Click">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">
                                 <Setter Property="Foreground" Value="{DynamicResource TaskForeground}"/>
+                                <Setter Property="FontWeight" Value="Normal"/>
                                 <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsHigh}" Value="True">
+                                        <Setter Property="FontWeight" Value="{DynamicResource HighPriorityFontWeight}"/>
+                                    </DataTrigger>
                                     <DataTrigger Binding="{Binding IsOverdue}" Value="True">
                                         <Setter Property="Foreground" Value="Red"/>
                                     </DataTrigger>

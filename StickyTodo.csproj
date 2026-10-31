@@ -9,6 +9,7 @@
     <ApplicationIcon>app.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="Tests/**/*.cs" />
     <Resource Include="app.ico" />
     <PackageReference Include="YamlDotNet" Version="16.*" />
   </ItemGroup>

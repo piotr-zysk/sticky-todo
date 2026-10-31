@@ -24,7 +24,6 @@ public partial class MainWindow : Window
     TaskItem? _dragItem;
     TaskItem? _markedItem;
     const double ItemHeight = 24;
-    const int MaxVisibleItems = 10;
 
     public MainWindow()
     {
@@ -42,7 +41,7 @@ public partial class MainWindow : Window
 
     void UpdateListHeight()
     {
-        double want = ItemHeight * Math.Clamp(_tasks.Count, 1, MaxVisibleItems);
+        double want = ItemHeight * Math.Clamp(_tasks.Count, 1, _settings.MaxItemsToDisplay);
         if (SizeToContent == SizeToContent.Manual)
         {
             if (!IsLoaded) return;
@@ -78,7 +77,7 @@ public partial class MainWindow : Window
             case nameof(TaskItem.IsDone):
                 if (t.IsDone)
                 {
-                    var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+                    var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(_settings.ItemDeleteRetentionSeconds) };
                     timer.Tick += (_, _) => { timer.Stop(); t.RemoveTimer = null; Complete(t); };
                     t.RemoveTimer = timer;
                     timer.Start();
@@ -138,6 +137,7 @@ public partial class MainWindow : Window
 
     void ApplyAppearance(AppearanceSettings settings)
     {
+        _settings = settings;
         Color color;
         try { color = (Color)ColorConverter.ConvertFromString(settings.BackgroundColor); }
         catch { color = Color.FromRgb(249, 237, 181); }
@@ -151,14 +151,17 @@ public partial class MainWindow : Window
             color.R * 0.299 + color.G * 0.587 + color.B * 0.114 < 140 ? Colors.White : Color.FromRgb(53, 50, 37));
         Foreground = foreground;
         Resources["TaskForeground"] = foreground;
+        Resources["HighPriorityFontWeight"] = settings.BoldHighPriority ? FontWeights.Bold : FontWeights.Normal;
         Opacity = settings.Opacity;
+        UpdateListHeight();
     }
 
     void Settings_Click(object sender, RoutedEventArgs e)
     {
         CommitAllEdits();
+        var originalSettings = _settings;
         var dialog = new SettingsWindow(_settings, ApplyAppearance) { Owner = this };
-        if (dialog.ShowDialog() == true) _settings = dialog.Settings;
+        _settings = dialog.ShowDialog() == true ? dialog.Settings : originalSettings;
         ApplyAppearance(_settings);
     }
 

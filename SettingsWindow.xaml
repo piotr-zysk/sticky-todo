@@ -26,9 +26,16 @@
             <TextBlock DockPanel.Dock="Right" Width="44" TextAlignment="Right" Text="{Binding ElementName=OpacitySlider, Path=Value, StringFormat={}{0:0}%}"/>
             <Slider x:Name="OpacitySlider" Minimum="20" Maximum="100" Value="100" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="Opacity_Changed" AutomationProperties.Name="Application opacity"/>
         </DockPanel>
+        <TextBlock Text="Item delete retention (seconds)" Margin="0,14,0,5"/>
+        <TextBox x:Name="DeleteRetentionSeconds" MaxLength="10" TextChanged="NumericSettings_Changed" AutomationProperties.Name="Item delete retention in seconds"/>
+        <TextBlock x:Name="RetentionError" Text="Enter a whole number of 0 or more." Foreground="#FFB00020" Visibility="Collapsed" Margin="0,4,0,0"/>
+        <TextBlock Text="Max number of items to display (1–100)" Margin="0,12,0,5"/>
+        <TextBox x:Name="MaxItemsToDisplay" MaxLength="3" TextChanged="NumericSettings_Changed" AutomationProperties.Name="Max number of items to display"/>
+        <TextBlock x:Name="MaxItemsError" Text="Enter a whole number from 1 to 100." Foreground="#FFB00020" Visibility="Collapsed" Margin="0,4,0,0"/>
+        <CheckBox x:Name="BoldHighPriority" Content="Bold high-priority items" Checked="BoldHighPriority_Changed" Unchecked="BoldHighPriority_Changed" Margin="0,12,0,0"/>
         <TextBlock Text="Changes are previewed on your sticky note." Margin="0,10,0,16" Foreground="#FF706A58"/>
         <DockPanel>
-            <Button Content="Reset all" Click="Reset_Click" Padding="10,5" DockPanel.Dock="Left"/>
+            <Button x:Name="ResetButton" Content="Reset all" Click="Reset_Click" Padding="10,5" DockPanel.Dock="Left"/>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                 <Button Content="Cancel" IsCancel="True" Padding="12,5" Margin="8,0"/>
                 <Button x:Name="SaveButton" Content="Save" IsDefault="True" Click="Save_Click" Padding="12,5"/>
