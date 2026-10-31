@@ -376,6 +376,7 @@ public partial class MainWindow : Window
             color.R * 0.299 + color.G * 0.587 + color.B * 0.114 < 140 ? Colors.White : Color.FromRgb(53, 50, 37));
         Foreground = foreground;
         Resources["TaskForeground"] = foreground;
+        Resources["AppBackground"] = Background;
         Resources["HighPriorityFontWeight"] = settings.BoldHighPriority ? FontWeights.Bold : FontWeights.Normal;
         Opacity = settings.Opacity;
         ApplyZoom(settings.ZoomPercent / 100.0);

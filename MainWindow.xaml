@@ -24,6 +24,7 @@
     </Window.Template>
     <Window.Resources>
         <SolidColorBrush x:Key="TaskForeground" Color="Black"/>
+        <SolidColorBrush x:Key="AppBackground" Color="#FFF9EDB5"/>
         <SolidColorBrush x:Key="InputSurface" Color="#FFFFFCF0"/>
         <SolidColorBrush x:Key="ControlBorder" Color="#FFD9CFAC"/>
         <SolidColorBrush x:Key="Accent" Color="#FF80651C"/>
@@ -80,6 +81,77 @@
             <Setter Property="BorderBrush" Value="{StaticResource ControlBorder}"/>
             <Setter Property="Foreground" Value="#FF353225"/>
             <Setter Property="FontSize" Value="12"/>
+            <!-- Replaces the stock item template, which draws a hard-coded white frame inside the calendar. -->
+            <Setter Property="CalendarItemStyle">
+                <Setter.Value>
+                    <Style TargetType="CalendarItem">
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="CalendarItem">
+                                    <ControlTemplate.Resources>
+                                        <DataTemplate x:Key="{x:Static CalendarItem.DayTitleTemplateResourceKey}">
+                                            <TextBlock Text="{Binding}" FontSize="10" FontWeight="SemiBold" Margin="0,4"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </DataTemplate>
+                                        <Style x:Key="CalendarNav" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                            <Setter Property="Background" Value="Transparent"/>
+                                            <Setter Property="BorderThickness" Value="0"/>
+                                            <Setter Property="MinHeight" Value="0"/>
+                                            <Setter Property="Padding" Value="8,4"/>
+                                            <Setter Property="Focusable" Value="False"/>
+                                            <Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=CalendarItem}}"/>
+                                        </Style>
+                                    </ControlTemplate.Resources>
+                                    <Grid x:Name="PART_Root">
+                                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6" Padding="2">
+                                            <Grid>
+                                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                                <Button x:Name="PART_PreviousButton" Style="{StaticResource CalendarNav}">
+                                                    <Path Data="M 6,0 L 0,5 6,10 Z" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                                </Button>
+                                                <Button x:Name="PART_HeaderButton" Grid.Column="1" Style="{StaticResource CalendarNav}" FontWeight="SemiBold"/>
+                                                <Button x:Name="PART_NextButton" Grid.Column="2" Style="{StaticResource CalendarNav}">
+                                                    <Path Data="M 0,0 L 6,5 0,10 Z" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                                </Button>
+                                                <Grid x:Name="PART_MonthView" Grid.Row="1" Grid.ColumnSpan="3" Margin="4,0,4,4" Visibility="Visible">
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                </Grid>
+                                                <Grid x:Name="PART_YearView" Grid.Row="1" Grid.ColumnSpan="3" Margin="4,0,4,4" Visibility="Hidden">
+                                                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                </Grid>
+                                            </Grid>
+                                        </Border>
+                                        <Rectangle x:Name="PART_DisabledVisual" Fill="#80FFFFFF" RadiusX="6" RadiusY="6" Visibility="Collapsed"/>
+                                    </Grid>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsEnabled" Value="False"><Setter TargetName="PART_DisabledVisual" Property="Visibility" Value="Visible"/></Trigger>
+                                        <DataTrigger Binding="{Binding DisplayMode, RelativeSource={RelativeSource AncestorType=Calendar}}" Value="Year">
+                                            <Setter TargetName="PART_MonthView" Property="Visibility" Value="Hidden"/>
+                                            <Setter TargetName="PART_YearView" Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding DisplayMode, RelativeSource={RelativeSource AncestorType=Calendar}}" Value="Decade">
+                                            <Setter TargetName="PART_MonthView" Property="Visibility" Value="Hidden"/>
+                                            <Setter TargetName="PART_YearView" Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </Setter.Value>
+            </Setter>
             <Setter Property="CalendarDayButtonStyle">
                 <Setter.Value>
                     <Style TargetType="CalendarDayButton">
@@ -149,6 +221,37 @@
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+        </Style>
+        <!-- Buttons in the due popup: translucent tints so they follow the appearance background. -->
+        <Style x:Key="PopupBtn" TargetType="Button">
+            <Setter Property="Background" Value="#14000000"/>
+            <Setter Property="BorderBrush" Value="#29000000"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Foreground" Value="{DynamicResource TaskForeground}"/>
+            <Setter Property="MinHeight" Value="32"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Surface" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6">
+                            <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="Background" Value="#29000000"/></Trigger>
+                            <Trigger Property="IsPressed" Value="True"><Setter TargetName="Surface" Property="Background" Value="#3D000000"/></Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="{StaticResource Accent}"/></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="TimeBtn" TargetType="Button" BasedOn="{StaticResource PopupBtn}">
+            <Setter Property="Width" Value="26"/>
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Margin" Value="1"/>
+            <Setter Property="Padding" Value="0"/>
         </Style>
         <Style x:Key="FlatBtn" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
@@ -313,31 +416,34 @@
                     </TextBlock>
                     <Popup IsOpen="{Binding IsEditingDue, Mode=TwoWay}" StaysOpen="False" Closed="DuePopup_Closed"
                            PlacementTarget="{Binding ElementName=DueHost}" Placement="Bottom"
-                           AllowsTransparency="False">
-                        <Border Background="{StaticResource InputSurface}" BorderBrush="{StaticResource ControlBorder}" BorderThickness="1" Padding="10" CornerRadius="6">
+                           AllowsTransparency="True">
+                        <Border Background="{DynamicResource AppBackground}" TextElement.Foreground="{DynamicResource TaskForeground}"
+                                TextElement.FontFamily="Segoe UI" TextElement.FontSize="13"
+                                BorderBrush="#FFE0CE88" BorderThickness="1" Padding="10" CornerRadius="8">
                             <StackPanel>
-                                <Calendar SelectedDate="{Binding EditDate, Mode=TwoWay}"
+                                <Calendar SelectedDate="{Binding EditDate, Mode=TwoWay}" Background="Transparent" BorderBrush="Transparent"
+                                          Foreground="{DynamicResource TaskForeground}"
                                           GotMouseCapture="Calendar_GotMouseCapture"/>
                                 <TextBlock Text="{Binding EditTimeText}" FontWeight="SemiBold" Margin="0,6,0,2"/>
                                 <ItemsControl ItemsSource="{x:Static local:Choices.Hours}">
                                     <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="12"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate><DataTemplate>
-                                        <Button Content="{Binding}" Width="26" Height="26" MinHeight="0" Margin="1" Padding="0" Click="Hour_Click"
+                                        <Button Content="{Binding}" Style="{StaticResource TimeBtn}" Click="Hour_Click"
                                                 Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=ItemsControl}}"/>
                                     </DataTemplate></ItemsControl.ItemTemplate>
                                 </ItemsControl>
                                 <ItemsControl ItemsSource="{x:Static local:Choices.Minutes}" Margin="0,4,0,0">
                                     <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="12"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate><DataTemplate>
-                                        <Button Content="{Binding}" Width="26" Height="26" MinHeight="0" Margin="1" Padding="0" Click="Minute_Click"
+                                        <Button Content="{Binding}" Style="{StaticResource TimeBtn}" Click="Minute_Click"
                                                 Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=ItemsControl}}"/>
                                     </DataTemplate></ItemsControl.ItemTemplate>
                                 </ItemsControl>
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,6,0,0">
-                                    <Button Content="No time" Padding="10,2" Margin="0,0,6,0" Click="NoTime_Click"
+                                    <Button Content="No time" Style="{StaticResource PopupBtn}" Padding="10,2" Margin="0,0,6,0" Click="NoTime_Click"
                                             Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=StackPanel}}"/>
-                                    <Button Content="Clear date" Padding="10,2" Margin="0,0,6,0" Click="DueClear_Click"/>
-                                    <Button Content="OK" Padding="14,2" Click="DueOk_Click"/>
+                                    <Button Content="Clear date" Style="{StaticResource PopupBtn}" Padding="10,2" Margin="0,0,6,0" Click="DueClear_Click"/>
+                                    <Button Content="OK" Style="{StaticResource PopupBtn}" Padding="14,2" Click="DueOk_Click"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
