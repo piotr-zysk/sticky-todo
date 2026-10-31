@@ -11,6 +11,7 @@ public partial class SettingsWindow : Window
     bool _updating;
     readonly GoogleConnection? _google;
     CancellationTokenSource? _signInCancellation;
+    const double BaseWidth = 760, BaseMaxHeight = 900;
     public AppearanceSettings Settings { get; private set; }
 
     public SettingsWindow(AppearanceSettings settings, Action<AppearanceSettings> preview, GoogleConnection? google = null)
@@ -23,10 +24,13 @@ public partial class SettingsWindow : Window
             ItemDeleteRetentionSeconds = settings.ItemDeleteRetentionSeconds,
             MaxItemsToDisplay = settings.MaxItemsToDisplay,
             DetailsAutoSaveIntervalSeconds = settings.DetailsAutoSaveIntervalSeconds,
-            BoldHighPriority = settings.BoldHighPriority
+            BoldHighPriority = settings.BoldHighPriority,
+            ZoomPercent = settings.ZoomPercent
         };
         _preview = preview;
         InitializeComponent();
+        ZoomLevel.ItemsSource = AppearanceSettings.ZoomLevels.Select(level => $"{level}%").ToList();
+        SizeChanged += (_, _) => KeepOnWorkArea();
         SetControls();
         UpdateGoogleControls();
         Closing += (_, _) => _signInCancellation?.Cancel();
@@ -96,6 +100,8 @@ public partial class SettingsWindow : Window
         MaxItemsToDisplay.Text = Settings.MaxItemsToDisplay.ToString(CultureInfo.InvariantCulture);
         DetailsAutoSaveIntervalSeconds.Text = Settings.DetailsAutoSaveIntervalSeconds.ToString(CultureInfo.InvariantCulture);
         BoldHighPriority.IsChecked = Settings.BoldHighPriority;
+        ZoomLevel.SelectedIndex = AppearanceSettings.ZoomLevels.ToList().IndexOf(Settings.ZoomPercent);
+        ApplyZoom();
         _updating = false;
         UpdateValidation();
     }
@@ -160,6 +166,32 @@ public partial class SettingsWindow : Window
         Settings.BoldHighPriority = BoldHighPriority.IsChecked == true;
         UpdateValidation();
         _preview(Settings);
+    }
+
+    void Zoom_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (_updating || !IsInitialized || ZoomLevel.SelectedIndex < 0) return;
+        Settings.ZoomPercent = AppearanceSettings.ZoomLevels[ZoomLevel.SelectedIndex];
+        ApplyZoom();
+        _preview(Settings);
+    }
+
+    void ApplyZoom()
+    {
+        double zoom = Settings.ZoomPercent / 100.0;
+        var area = SystemParameters.WorkArea;
+        Zoom.Apply(RootGrid, zoom);
+        Width = Zoom.Fit(BaseWidth, zoom, area.Width);
+        MaxHeight = Zoom.Fit(BaseMaxHeight, zoom, area.Height);
+    }
+
+    // Live zoom changes resize the dialog; pull it back if it grows past the work area edge.
+    void KeepOnWorkArea()
+    {
+        if (!IsLoaded) return;
+        var area = SystemParameters.WorkArea;
+        Left = Math.Max(area.Left, Math.Min(Left, area.Right - ActualWidth));
+        Top = Math.Max(area.Top, Math.Min(Top, area.Bottom - ActualHeight));
     }
 
     bool TryReadNumericSettings(out int retention, out int maxItems, out int autoSaveInterval)

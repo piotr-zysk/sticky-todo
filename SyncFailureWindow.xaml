@@ -4,7 +4,7 @@
         Title="Google sync failed" Width="460" SizeToContent="Height" ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False" Topmost="True"
         Background="#FFFFFCF0" FontFamily="Segoe UI" FontSize="13">
-    <StackPanel Margin="20">
+    <StackPanel x:Name="RootPanel" Margin="20">
         <TextBlock Text="Your changes are saved locally. Google sync failed." TextWrapping="Wrap" FontWeight="SemiBold"/>
         <TextBlock x:Name="ErrorText" TextWrapping="Wrap" Margin="0,12,0,18"/>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">

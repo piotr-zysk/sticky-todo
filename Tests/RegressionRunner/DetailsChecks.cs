@@ -141,7 +141,12 @@ static partial class Program
                 "Cancel restores the prior interval and pending timer without resetting history");
             Check(Storage.LoadSettings().DetailsAutoSaveIntervalSeconds == 0, "Cancel leaves persisted settings unchanged");
 
+            double noteWidth = note.Width, noteHeight = note.Height;
+            ApplySettings(main, new AppearanceSettings { DetailsAutoSaveIntervalSeconds = 0, ZoomPercent = 50 });
+            Check(Find<DockPanel>(note, "RootPanel").LayoutTransform is System.Windows.Media.ScaleTransform { ScaleX: 0.5 } &&
+                  Math.Abs(note.Width - noteWidth / 2) < 1 && Math.Abs(note.Height - noteHeight / 2) < 1, "zoom propagates to open details windows");
             ApplySettings(main, new AppearanceSettings { DetailsAutoSaveIntervalSeconds = 0 });
+            Check(Math.Abs(note.Width - noteWidth) < 1 && Math.Abs(note.Height - noteHeight) < 1, "details windows return to their size at 100%");
             editor.Text = "Saved on close";
             note.Close();
             Check(Storage.LoadDetails(task.Id) == "Saved on close", "closing a note forces a save with autosave disabled");

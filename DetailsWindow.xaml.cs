@@ -11,6 +11,8 @@ public partial class DetailsWindow : Window
     readonly DetailsSaveSession _session;
     readonly DispatcherTimer _saveTimer = new();
     bool _replacing;
+    double _zoom = 1;
+    const double BaseMinWidth = 240, BaseMinHeight = 180;
     public bool IsSyncing { get; set; }
 
     public DetailsWindow(TaskItem task, DetailsSaveSession session)
@@ -87,12 +89,28 @@ public partial class DetailsWindow : Window
         }
     }
 
-    public void ApplyAppearance(Brush background, Brush header, Brush foreground, double opacity)
+    public void ApplyAppearance(Brush background, Brush header, Brush foreground, double opacity, double zoom = 1)
     {
         Background = background;
         HeaderBar.Background = header;
         Foreground = foreground;
         Opacity = opacity;
+        ApplyZoom(zoom);
+    }
+
+    void ApplyZoom(double zoom)
+    {
+        if (zoom == _zoom) return;
+        double ratio = zoom / _zoom;
+        _zoom = zoom;
+        Zoom.Apply(RootPanel, zoom);
+        var area = SystemParameters.WorkArea;
+        // Read the size before changing minimums: raising them resizes the window immediately.
+        double width = Zoom.Fit(Width, ratio, area.Width), height = Zoom.Fit(Height, ratio, area.Height);
+        MinWidth = Zoom.Fit(BaseMinWidth, zoom, area.Width);
+        MinHeight = Zoom.Fit(BaseMinHeight, zoom, area.Height);
+        Width = Math.Max(MinWidth, width);
+        Height = Math.Max(MinHeight, height);
     }
 
     void Header_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)

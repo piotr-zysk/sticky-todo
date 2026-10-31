@@ -7,7 +7,7 @@
     <WindowChrome.WindowChrome>
         <WindowChrome CaptionHeight="0" ResizeBorderThickness="5" GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False"/>
     </WindowChrome.WindowChrome>
-    <DockPanel Margin="5">
+    <DockPanel x:Name="RootPanel" Margin="5">
         <Grid x:Name="HeaderBar" DockPanel.Dock="Top" Height="30" MouseLeftButtonDown="Header_MouseLeftButtonDown">
             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="30"/></Grid.ColumnDefinitions>
             <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="7,0" FontWeight="SemiBold"/>

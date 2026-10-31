@@ -27,6 +27,9 @@ public partial class MainWindow : Window
     TaskItem? _dragItem;
     TaskItem? _markedItem;
     const double ItemHeight = 24;
+    const double BaseMinWidth = 320;
+    double _zoom = 1, _unzoomedWidth = double.NaN, _appliedWidth = double.NaN;
+    bool _applyingZoom;
     readonly GoogleConnection? _google;
     readonly Func<IDriveTransport>? _driveTransportFactory;
     bool _syncInProgress, _closeInProgress, _allowClose;
@@ -67,6 +70,8 @@ public partial class MainWindow : Window
     // Resizing by the user makes WPF drop SizeToContent; restore it so the height keeps following the items.
     void Window_SizeChanged(object sender, SizeChangedEventArgs e)
     {
+        // Remember user resizes in unzoomed units so previewing a large zoom and returning keeps the width.
+        if (e.WidthChanged && !_applyingZoom && !(Math.Abs(e.NewSize.Width - _appliedWidth) < 1)) _unzoomedWidth = e.NewSize.Width / _zoom;
         if (SizeToContent != SizeToContent.Height)
             Dispatcher.BeginInvoke(() => SizeToContent = SizeToContent.Height, DispatcherPriority.Loaded);
     }
@@ -174,7 +179,7 @@ public partial class MainWindow : Window
                     try { await SynchronizeAsync(); break; }
                     catch (Exception ex) when (ex is not SyncLocalSaveException)
                     {
-                        var dialog = new SyncFailureWindow(FriendlySyncError(ex)) { Owner = this };
+                        var dialog = new SyncFailureWindow(FriendlySyncError(ex), _zoom) { Owner = this };
                         dialog.ShowDialog();
                         if (dialog.Choice == SyncFailureChoice.Retry) continue;
                         if (dialog.Choice == SyncFailureChoice.CloseAnyway) break;
@@ -322,7 +327,7 @@ public partial class MainWindow : Window
                 _detailsSessions.Add(task.Id, session);
             }
             var note = new DetailsWindow(task, session) { Owner = this, WindowStartupLocation = WindowStartupLocation.CenterOwner };
-            note.ApplyAppearance(Background, HeaderBar.Background, Foreground, Opacity);
+            note.ApplyAppearance(Background, HeaderBar.Background, Foreground, Opacity, _zoom);
             _detailsWindows.Add(task.Id, note);
             note.Closed += (_, _) => _detailsWindows.Remove(task.Id);
             note.Show();
@@ -373,8 +378,9 @@ public partial class MainWindow : Window
         Resources["TaskForeground"] = foreground;
         Resources["HighPriorityFontWeight"] = settings.BoldHighPriority ? FontWeights.Bold : FontWeights.Normal;
         Opacity = settings.Opacity;
+        ApplyZoom(settings.ZoomPercent / 100.0);
         foreach (var note in _detailsWindows.Values)
-            note.ApplyAppearance(Background, HeaderBar.Background, Foreground, Opacity);
+            note.ApplyAppearance(Background, HeaderBar.Background, Foreground, Opacity, _zoom);
         foreach (var pair in _detailsSessions.ToList())
         {
             if (pair.Value.AutoSaveIntervalSeconds == settings.DetailsAutoSaveIntervalSeconds) continue;
@@ -382,6 +388,27 @@ public partial class MainWindow : Window
             if (_detailsWindows.TryGetValue(pair.Key, out var note)) note.RescheduleAutoSave();
         }
         UpdateListHeight();
+    }
+
+    void ApplyZoom(double zoom)
+    {
+        if (double.IsNaN(_unzoomedWidth)) _unzoomedWidth = (double.IsNaN(Width) ? ActualWidth : Width) / _zoom;
+        if (zoom == _zoom && !double.IsNaN(_appliedWidth)) return;
+        _zoom = zoom;
+        Zoom.Apply(RootDock, zoom);
+        // While SizeToContent is active a shown window ignores Width changes, and a transform change alone does not
+        // refit the height. Resize manually, then re-arm SizeToContent. MinWidth changes resize the window
+        // synchronously, so those intermediate sizes must not be recorded as user resizes.
+        _applyingZoom = true;
+        try
+        {
+            SizeToContent = SizeToContent.Manual;
+            double available = SystemParameters.WorkArea.Width;
+            MinWidth = Zoom.Fit(BaseMinWidth, zoom, available);
+            Width = _appliedWidth = Math.Max(MinWidth, Zoom.Fit(_unzoomedWidth, zoom, available));
+            SizeToContent = SizeToContent.Height;
+        }
+        finally { _applyingZoom = false; }
     }
 
     void Settings_Click(object sender, RoutedEventArgs e)

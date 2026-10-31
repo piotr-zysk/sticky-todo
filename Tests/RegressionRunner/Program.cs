@@ -61,6 +61,15 @@ static partial class Program
         Check(settings.DetailsAutoSaveIntervalSeconds == 0, "negative autosave intervals clamp to disabled");
         settings.DetailsAutoSaveIntervalSeconds = 3601;
         Check(settings.DetailsAutoSaveIntervalSeconds == 3600, "autosave interval is clamped to one hour");
+
+        Check(new AppearanceSettings().ZoomPercent == 100, "default zoom is 100%");
+        Check(AppearanceSettings.ZoomLevels.SequenceEqual(new[] { 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150 }),
+            "zoom offers the supported levels");
+        foreach (var (input, expected) in new[] { (0, 50), (-50, 50), (20, 50), (123, 120), (200, 150), (9999, 150), (110, 110) })
+        {
+            settings.ZoomPercent = input;
+            Check(settings.ZoomPercent == expected, $"zoom {input}% snaps to {expected}%");
+        }
     }
 
     static void CheckSettingsPersistence()
@@ -93,6 +102,11 @@ static partial class Program
             Check(Storage.LoadSettings().DetailsAutoSaveIntervalSeconds == 0, "negative YAML autosave intervals clamp to zero");
             File.WriteAllText(path, "detailsAutoSaveIntervalSeconds: 9999\n");
             Check(Storage.LoadSettings().DetailsAutoSaveIntervalSeconds == 3600, "excessive YAML autosave intervals clamp to one hour");
+            Check(Storage.LoadSettings().ZoomPercent == 100, "settings missing zoom default to 100%");
+            Storage.SaveSettings(new AppearanceSettings { ZoomPercent = 140 });
+            Check(Storage.LoadSettings().ZoomPercent == 140 && File.ReadAllText(path).Contains("zoomPercent: 140"), "zoom persists with the camelCase settings key");
+            File.WriteAllText(path, "zoomPercent: 123\n");
+            Check(Storage.LoadSettings().ZoomPercent == 120, "unsupported YAML zoom snaps to the nearest level");
         }
         finally
         {
@@ -106,7 +120,8 @@ static partial class Program
         {
             ItemDeleteRetentionSeconds = 8,
             MaxItemsToDisplay = 20,
-            DetailsAutoSaveIntervalSeconds = 120
+            DetailsAutoSaveIntervalSeconds = 120,
+            ZoomPercent = 150
         };
         int previews = 0;
         var dialog = new SettingsWindow(original, _ => previews++);
@@ -149,11 +164,32 @@ static partial class Program
         Find<TextBox>(dialog, "HexColor").Text = "#112233";
         Check(Find<Button>(dialog, "SaveButton").IsEnabled, "valid color restores Save when numeric fields are valid");
 
+        var zoom = Find<ComboBox>(dialog, "ZoomLevel");
+        Check(zoom.Items.Count == AppearanceSettings.ZoomLevels.Count && (string)zoom.Items[0] == "50%" && (string)zoom.Items[^1] == "150%" &&
+              (string)zoom.SelectedItem == "150%", "zoom select box lists every level and shows the configured zoom");
+        Check(Find<Grid>(dialog, "RootGrid").LayoutTransform is System.Windows.Media.ScaleTransform { ScaleX: 1.5, ScaleY: 1.5 },
+            "settings window opens at the configured zoom");
+        int previewsBeforeZoom = previews;
+        zoom.SelectedItem = "50%";
+        Check(dialog.Settings.ZoomPercent == 50 && previews > previewsBeforeZoom, "choosing a zoom updates and previews it");
+        Check(Find<Grid>(dialog, "RootGrid").LayoutTransform is System.Windows.Media.ScaleTransform { ScaleX: 0.5 } && dialog.Width == 380,
+            "settings window resizes with the previewed zoom");
+        dialog.Show();
+        PumpDispatcher(TimeSpan.FromMilliseconds(200));
+        double halfZoomHeight = dialog.ActualHeight;
+        zoom.SelectedItem = "100%";
+        PumpDispatcher(TimeSpan.FromMilliseconds(200));
+        Check(dialog.ActualHeight > halfZoomHeight * 1.5, $"shown settings window height follows a live zoom change ({halfZoomHeight} -> {dialog.ActualHeight})");
+        var settingsScroll = (ScrollViewer)dialog.Content;
+        Check(settingsScroll.ExtentWidth <= settingsScroll.ViewportWidth + 1, $"settings content wraps to the window width ({settingsScroll.ExtentWidth} vs {settingsScroll.ViewportWidth})");
+
         Find<Button>(dialog, "ResetButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         Check(dialog.Settings.ItemDeleteRetentionSeconds == 5 && dialog.Settings.MaxItemsToDisplay == 10 &&
-              !dialog.Settings.BoldHighPriority && dialog.Settings.DetailsAutoSaveIntervalSeconds == 60 && autoSaveInterval.Text == "60", "Reset all restores the new defaults");
-        Check(original.ItemDeleteRetentionSeconds == 8 && original.MaxItemsToDisplay == 20 && original.DetailsAutoSaveIntervalSeconds == 120,
-            "dialog edits do not mutate the original settings");
+              !dialog.Settings.BoldHighPriority && dialog.Settings.DetailsAutoSaveIntervalSeconds == 60 && autoSaveInterval.Text == "60" &&
+              dialog.Settings.ZoomPercent == 100 && (string)zoom.SelectedItem == "100%", "Reset all restores the new defaults");
+        Check(original.ItemDeleteRetentionSeconds == 8 && original.MaxItemsToDisplay == 20 && original.DetailsAutoSaveIntervalSeconds == 120 &&
+              original.ZoomPercent == 150, "dialog edits do not mutate the original settings");
+        dialog.Close();
     }
 
     static void CheckTaskRenderingAndTimers()
@@ -185,6 +221,26 @@ static partial class Program
             Check(Find<ListBox>(window, "TaskList").Height == 24, "minimum list display limit is reflected in its height");
             Check((FontWeight)window.Resources["HighPriorityFontWeight"] == FontWeights.Normal,
                 "disabling bold previews the normal font weight");
+
+            preview.ZoomPercent = 50;
+            ApplySettings(window, preview);
+            Check(Find<DockPanel>(window, "RootDock").LayoutTransform is System.Windows.Media.ScaleTransform { ScaleX: 0.5, ScaleY: 0.5 } &&
+                  window.Width == 400 && window.MinWidth == 160, "zoom scales the main window content and width");
+            Check(Find<ListBox>(window, "TaskList").Height == 24, "zoom keeps list height in unscaled row units");
+            preview.ZoomPercent = 100;
+            ApplySettings(window, preview);
+            Check(window.Width == 800 && window.MinWidth == 320, "returning to 100% restores the original width");
+            window.Show();
+            var rootDock = Find<DockPanel>(window, "RootDock");
+            foreach (var zoomPercent in new[] { 150, 50, 130, 100 })
+            {
+                preview.ZoomPercent = zoomPercent;
+                ApplySettings(window, preview);
+                PumpDispatcher(TimeSpan.FromMilliseconds(200));
+                double expected = rootDock.ActualHeight * zoomPercent / 100 + window.BorderThickness.Top + window.BorderThickness.Bottom;
+                Check(Math.Abs(window.ActualHeight - expected) < 2, $"main window height follows {zoomPercent}% zoom ({window.ActualHeight} vs {expected})");
+                Check(Math.Abs(window.ActualWidth - Math.Min(8 * zoomPercent, SystemParameters.WorkArea.Width)) < 2, $"main window width follows {zoomPercent}% zoom ({window.ActualWidth})");
+            }
 
             var undo = new TaskItem { Title = "Undo completion" };
             attach.Invoke(window, new object[] { undo, false });
