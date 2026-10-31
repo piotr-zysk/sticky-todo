@@ -10,6 +10,8 @@ public partial class DetailsWindow : Window
 {
     readonly DetailsSaveSession _session;
     readonly DispatcherTimer _saveTimer = new();
+    bool _replacing;
+    public bool IsSyncing { get; set; }
 
     public DetailsWindow(TaskItem task, DetailsSaveSession session)
     {
@@ -17,7 +19,7 @@ public partial class DetailsWindow : Window
         DataContext = task;
         _session = session;
         Editor.Text = session.Text;
-        Editor.TextChanged += (_, _) => { _session.Edit(Editor.Text); SaveAndSchedule(); };
+        Editor.TextChanged += (_, _) => { if (_replacing) return; _session.Edit(Editor.Text); SaveAndSchedule(); };
         _saveTimer.Tick += (_, _) => SaveAndSchedule();
         Closing += OnClosing;
         Closed += (_, _) => _saveTimer.Stop();
@@ -42,6 +44,16 @@ public partial class DetailsWindow : Window
 
     public void Flush() => _session.Save(force: true);
 
+    public void RefreshTask(TaskItem task, string text)
+    {
+        _saveTimer.Stop();
+        _session.Replace(text);
+        DataContext = task;
+        _replacing = true;
+        try { Editor.Text = text; }
+        finally { _replacing = false; }
+    }
+
     public void DiscardAndClose()
     {
         _session.Discard();
@@ -51,6 +63,7 @@ public partial class DetailsWindow : Window
 
     void OnClosing(object? sender, CancelEventArgs e)
     {
+        if (IsSyncing) { e.Cancel = true; return; }
         try { Flush(); }
         catch (Exception ex)
         {

@@ -8,6 +8,13 @@ namespace StickyTodo;
 public class TaskItem : INotifyPropertyChanged
 {
     public Guid Id { get; init; } = Guid.NewGuid();
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public void Touch() => UpdatedAt = NextTimestamp(UpdatedAt);
+    public static DateTimeOffset NextTimestamp(DateTimeOffset previous)
+    {
+        var now = DateTimeOffset.UtcNow;
+        return now > previous ? now : previous.AddTicks(1);
+    }
     string _title = "";
     DateTime? _date;
     TimeSpan? _time;
@@ -19,9 +26,9 @@ public class TaskItem : INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
     void Raise([CallerMemberName] string? n = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(n));
 
-    public string Title { get => _title; set { _title = value; Raise(); } }
-    public bool IsHigh { get => _high; set { _high = value; Raise(); } }
-    public bool IsDone { get => _done; set { _done = value; Raise(); Raise(nameof(IsOverdue)); } }
+    public string Title { get => _title; set { if (_title == value) return; _title = value; Touch(); Raise(); } }
+    public bool IsHigh { get => _high; set { if (_high == value) return; _high = value; Touch(); Raise(); } }
+    public bool IsDone { get => _done; set { if (_done == value) return; _done = value; Touch(); Raise(); Raise(nameof(IsOverdue)); } }
     public bool IsEditingTitle { get => _editTitle; set { _editTitle = value; Raise(); } }
     public bool IsEditingDue { get => _editDue; set { _editDue = value; Raise(); } }
     public int DropMarker { get => _drop; set { _drop = value; Raise(); } }
@@ -40,8 +47,12 @@ public class TaskItem : INotifyPropertyChanged
 
     public void SetDue(DateTime? date, TimeSpan? time)
     {
+        date = date?.Date;
+        time = date.HasValue ? time : null;
+        if (_date == date && _time == time) return;
         _date = date?.Date;
         _time = date.HasValue ? time : null;
+        Touch();
         Raise(nameof(DueDate));
         Raise(nameof(DueTime));
         Raise(nameof(DueText));

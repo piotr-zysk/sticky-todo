@@ -27,10 +27,20 @@ public partial class MainWindow : Window
     TaskItem? _dragItem;
     TaskItem? _markedItem;
     const double ItemHeight = 24;
+    readonly GoogleConnection? _google;
+    readonly Func<IDriveTransport>? _driveTransportFactory;
+    bool _syncInProgress, _closeInProgress, _allowClose;
 
-    public MainWindow()
+    public MainWindow(bool enableGoogle = true, GoogleConnection? google = null, Func<IDriveTransport>? driveTransportFactory = null)
     {
         InitializeComponent();
+        _driveTransportFactory = driveTransportFactory;
+        if (enableGoogle)
+        {
+            _google = google ?? new GoogleConnection();
+            _google.Changed += UpdateSyncStatus;
+        }
+        UpdateSyncStatus();
         _settings = Storage.LoadSettings();
         ApplyAppearance(_settings);
         foreach (var t in Storage.LoadTasks()) Attach(t, false);
@@ -94,6 +104,7 @@ public partial class MainWindow : Window
         switch (e.PropertyName)
         {
             case nameof(TaskItem.IsDone):
+                Save();
                 if (t.IsDone)
                 {
                     var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(_settings.ItemDeleteRetentionSeconds) };
@@ -121,9 +132,7 @@ public partial class MainWindow : Window
         if (!_tasks.Contains(t)) return;
         try
         {
-            Storage.Archive(t);
-            Storage.DeleteDetails(t.Id);
-            Storage.SaveTasks(_tasks.Where(item => item != t));
+            Storage.CompleteTask(t, _tasks.Where(item => item != t));
             if (_detailsWindows.TryGetValue(t.Id, out var note)) note.DiscardAndClose();
             _detailsSessions.Remove(t.Id);
             _tasks.Remove(t);
@@ -136,29 +145,147 @@ public partial class MainWindow : Window
         }
     }
 
-    void OnClosing(object? sender, CancelEventArgs e)
+    void PrepareLocalForSync()
     {
         CommitAllEdits();
-        try
-        {
-            foreach (var pair in _detailsWindows)
-                if (!_tasks.Any(t => t.Id == pair.Key && t.IsDone)) pair.Value.Flush();
-        }
-        catch (Exception ex)
-        {
-            e.Cancel = true;
-            MessageBox.Show(this, $"Could not save task details. The application will stay open so you can retry.\n\n{ex.Message}", "Save failed", MessageBoxButton.OK, MessageBoxImage.Error);
-            return;
-        }
+        foreach (var session in _detailsSessions.Values) session.Save(force: true);
         foreach (var t in _tasks.Where(x => x.IsDone).ToList())
         {
             t.RemoveTimer?.Stop();
             Complete(t);
-            if (_tasks.Contains(t)) { e.Cancel = true; return; }
+            if (_tasks.Contains(t)) throw new System.IO.IOException("Could not archive a completed task.");
         }
-        foreach (var note in _detailsWindows.Values.ToList()) note.Close();
-        if (_detailsWindows.Count > 0) { e.Cancel = true; return; }
-        _overdueTimer.Stop();
+        Save();
+    }
+
+    async void OnClosing(object? sender, CancelEventArgs e)
+    {
+        if (_allowClose) return;
+        e.Cancel = true;
+        if (_syncInProgress || _closeInProgress) return;
+        _closeInProgress = true;
+        try
+        {
+            PrepareLocalForSync(); // Local failures must never offer "Close anyway".
+            if (_google?.IsSignedIn == true)
+            {
+                while (true)
+                {
+                    try { await SynchronizeAsync(); break; }
+                    catch (Exception ex) when (ex is not SyncLocalSaveException)
+                    {
+                        var dialog = new SyncFailureWindow(FriendlySyncError(ex)) { Owner = this };
+                        dialog.ShowDialog();
+                        if (dialog.Choice == SyncFailureChoice.Retry) continue;
+                        if (dialog.Choice == SyncFailureChoice.CloseAnyway) break;
+                        return;
+                    }
+                }
+            }
+            foreach (var note in _detailsWindows.Values.ToList()) note.Close();
+            if (_detailsWindows.Count > 0) return;
+            _overdueTimer.Stop();
+            if (_google != null) _google.Changed -= UpdateSyncStatus;
+            _allowClose = true;
+            // Avoid recursively closing the window from within its first Closing event.
+            _ = Dispatcher.BeginInvoke(Close);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, $"Could not save local tasks. The application will stay open so you can retry.\n\n{ex.Message}",
+                "Save failed", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally { _closeInProgress = false; }
+    }
+
+    void UpdateSyncStatus()
+    {
+        SyncButton.Visibility = _google?.IsSignedIn == true ? Visibility.Visible : Visibility.Collapsed;
+        SyncButton.Content = _syncInProgress ? "…" : "↻";
+        SyncButton.IsEnabled = !_syncInProgress;
+        SyncButton.ToolTip = _syncInProgress ? "Syncing with Google Drive…"
+            : _google?.LastSync is { } last ? $"Last synced: {last.ToLocalTime():yyyy-MM-dd HH:mm:ss}" : "Never synced";
+    }
+
+    async void Sync_Click(object sender, RoutedEventArgs e)
+    {
+        e.Handled = true;
+        if (_syncInProgress || _closeInProgress || _google?.IsSignedIn != true) return;
+        try
+        {
+            PrepareLocalForSync();
+            await SynchronizeAsync();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, $"Sync failed. Local changes are retained.\n\n{FriendlySyncError(ex)}",
+                "Google Drive sync", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    static string FriendlySyncError(Exception ex) => ex is OperationCanceledException
+        ? "Google sync timed out. Check your internet connection and retry."
+        : ex is Google.Apis.Auth.OAuth2.Responses.TokenResponseException
+            ? "Google authorization could not be refreshed. Sign out and sign in again in Settings." : ex.Message;
+
+    sealed class SyncLocalSaveException(Exception inner) : System.IO.IOException(
+        "Could not read or save local sync data. Please retry. " + inner.Message, inner);
+
+    async Task SynchronizeAsync(IDriveTransport? transport = null)
+    {
+        if (_syncInProgress) throw new InvalidOperationException("A sync is already running.");
+        _syncInProgress = true;
+        RootDock.IsEnabled = false;
+        var timers = _tasks.Where(t => t.RemoveTimer?.IsEnabled == true).Select(t => t.RemoveTimer!).ToList();
+        foreach (var timer in timers) timer.Stop();
+        foreach (var note in _detailsWindows.Values) { note.IsSyncing = true; note.IsEnabled = false; }
+        UpdateSyncStatus();
+        try
+        {
+            SyncSnapshot local;
+            try { local = Storage.LoadSnapshot(); }
+            catch (Exception ex) { throw new SyncLocalSaveException(ex); }
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            transport ??= _driveTransportFactory?.Invoke();
+            using var drive = transport == null ? _google!.CreateService() : null;
+            var merged = await SyncEngine.MergeAndUploadAsync(local, transport ?? new GoogleDriveTransport(drive!), timeout.Token);
+            try { Storage.ApplySnapshot(merged); }
+            catch (Exception ex) { throw new SyncLocalSaveException(ex); }
+            ApplySyncedTasks(merged);
+            _google?.RecordSuccess();
+        }
+        finally
+        {
+            foreach (var note in _detailsWindows.Values) { note.IsSyncing = false; note.IsEnabled = true; }
+            foreach (var timer in timers) timer.Start();
+            RootDock.IsEnabled = true;
+            _syncInProgress = false;
+            UpdateSyncStatus();
+        }
+    }
+
+    void ApplySyncedTasks(SyncSnapshot snapshot)
+    {
+        foreach (var task in _tasks) task.PropertyChanged -= OnItemChanged;
+        _tasks.Clear();
+        foreach (var record in snapshot.Tasks.Where(t => !t.CompletedAt.HasValue)) Attach(Storage.ToTask(record), false);
+        var active = _tasks.ToDictionary(t => t.Id);
+        foreach (var pair in _detailsWindows.ToList())
+        {
+            if (!active.ContainsKey(pair.Key))
+            {
+                pair.Value.IsSyncing = false;
+                pair.Value.DiscardAndClose();
+                _detailsSessions.Remove(pair.Key);
+            }
+        }
+        foreach (var pair in _detailsSessions.ToList())
+        {
+            if (!active.TryGetValue(pair.Key, out var task)) { pair.Value.Discard(); _detailsSessions.Remove(pair.Key); continue; }
+            var text = snapshot.Tasks.Single(t => t.Id == pair.Key).Details;
+            pair.Value.Replace(text);
+            if (_detailsWindows.TryGetValue(pair.Key, out var note)) note.RefreshTask(task, text);
+        }
     }
 
     void Details_Click(object sender, RoutedEventArgs e)
@@ -181,7 +308,9 @@ public partial class MainWindow : Window
             Save(); // Persist identity before creating any details file.
             if (!_detailsSessions.TryGetValue(task.Id, out var session))
             {
-                session = new DetailsSaveSession(Storage.LoadDetails(task.Id), text => Storage.SaveDetails(task.Id, text));
+                var id = task.Id;
+                session = new DetailsSaveSession(Storage.LoadDetails(id), text =>
+                    Storage.SaveTaskDetails(_tasks.Single(t => t.Id == id), text, _tasks));
                 _detailsSessions.Add(task.Id, session);
             }
             var note = new DetailsWindow(task, session) { Owner = this, WindowStartupLocation = WindowStartupLocation.CenterOwner };
@@ -210,6 +339,7 @@ public partial class MainWindow : Window
 
     void TitleBar_MouseDown(object sender, MouseButtonEventArgs e)
     {
+        if (FindAncestor<Button>(e.OriginalSource as DependencyObject) != null) return;
         if (e.ButtonState == MouseButtonState.Pressed) DragMove();
     }
 
@@ -244,7 +374,7 @@ public partial class MainWindow : Window
     {
         CommitAllEdits();
         var originalSettings = _settings;
-        var dialog = new SettingsWindow(_settings, ApplyAppearance) { Owner = this };
+        var dialog = new SettingsWindow(_settings, ApplyAppearance, _google) { Owner = this };
         _settings = dialog.ShowDialog() == true ? dialog.Settings : originalSettings;
         ApplyAppearance(_settings);
     }

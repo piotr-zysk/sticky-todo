@@ -343,6 +343,8 @@
         <Grid x:Name="HeaderBar" DockPanel.Dock="Top" Height="32" Background="#FFEEDD9A" MouseLeftButtonDown="TitleBar_MouseDown">
             <TextBlock Text="To do" FontWeight="SemiBold" VerticalAlignment="Center" Margin="12,0,0,0" IsHitTestVisible="False"/>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button x:Name="SyncButton" Style="{StaticResource FlatBtn}" Content="&#x21BB;" FontSize="19" Visibility="Collapsed"
+                        ToolTip="Never synced" AutomationProperties.Name="Sync with Google Drive" Click="Sync_Click"/>
                 <Button Style="{StaticResource FlatBtn}" Content="+" FontWeight="Bold" ToolTip="Add task" Click="AddToggle_Click"/>
                 <Button Style="{StaticResource FlatBtn}" ToolTip="Settings" AutomationProperties.Name="Settings" Click="Settings_Click">
                     <StackPanel VerticalAlignment="Center">

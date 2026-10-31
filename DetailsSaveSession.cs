@@ -36,4 +36,10 @@ public sealed class DetailsSaveSession
     }
 
     public void Discard() { IsDiscarded = true; IsDirty = false; }
+
+    public void Replace(string text)
+    {
+        if (IsDirty || IsDiscarded) throw new InvalidOperationException("Cannot replace unsaved or discarded details.");
+        Text = text;
+    }
 }

@@ -12,5 +12,6 @@
     <Compile Remove="Tests/**/*.cs" />
     <Resource Include="app.ico" />
     <PackageReference Include="YamlDotNet" Version="16.*" />
+    <PackageReference Include="Google.Apis.Drive.v3" Version="1.77.0.4301" />
   </ItemGroup>
 </Project>

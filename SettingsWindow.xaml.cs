@@ -9,10 +9,13 @@ public partial class SettingsWindow : Window
 {
     readonly Action<AppearanceSettings> _preview;
     bool _updating;
+    readonly GoogleConnection? _google;
+    CancellationTokenSource? _signInCancellation;
     public AppearanceSettings Settings { get; private set; }
 
-    public SettingsWindow(AppearanceSettings settings, Action<AppearanceSettings> preview)
+    public SettingsWindow(AppearanceSettings settings, Action<AppearanceSettings> preview, GoogleConnection? google = null)
     {
+        _google = google;
         Settings = new()
         {
             BackgroundColor = settings.BackgroundColor,
@@ -24,7 +27,59 @@ public partial class SettingsWindow : Window
         _preview = preview;
         InitializeComponent();
         SetControls();
+        UpdateGoogleControls();
+        Closing += (_, _) => _signInCancellation?.Cancel();
     }
+
+    void UpdateGoogleControls()
+    {
+        GoogleStatus.Text = _google?.ConnectionError ?? (_google?.IsSignedIn == true ? $"Signed in: {_google.Account}"
+            : _google?.HasConfiguration == true ? "Ready to sign in." : "Import Google Desktop app credentials to enable sign-in.");
+        ImportGoogleButton.IsEnabled = _google != null && !_google.IsSignedIn;
+        GoogleSignInButton.IsEnabled = _google?.HasConfiguration == true && !_google.IsSignedIn;
+        GoogleSignOutButton.Visibility = _google?.IsSignedIn == true ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    void ImportGoogle_Click(object sender, RoutedEventArgs e)
+    {
+        var picker = new Microsoft.Win32.OpenFileDialog { Filter = "Google client credentials (*.json)|*.json", Title = "Import Google Desktop app credentials" };
+        if (picker.ShowDialog(this) != true) return;
+        try { _google!.ImportCredentials(picker.FileName); UpdateGoogleControls(); }
+        catch (Exception ex) { MessageBox.Show(this, ex.Message, "Google configuration", MessageBoxButton.OK, MessageBoxImage.Error); }
+    }
+
+    async void GoogleSignIn_Click(object sender, RoutedEventArgs e)
+    {
+        GoogleActions.IsEnabled = false;
+        GoogleStatus.Text = "Complete sign-in in your browser…";
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+        _signInCancellation = cancellation;
+        try { await _google!.SignInAsync(cancellation.Token); }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { MessageBox.Show(this, ex.Message, "Google sign-in failed", MessageBoxButton.OK, MessageBoxImage.Error); }
+        finally
+        {
+            _signInCancellation = null;
+            GoogleActions.IsEnabled = true;
+            UpdateGoogleControls();
+        }
+    }
+
+    async void GoogleSignOut_Click(object sender, RoutedEventArgs e)
+    {
+        try { await _google!.SignOutAsync(); UpdateGoogleControls(); }
+        catch (Exception ex) { MessageBox.Show(this, ex.Message, "Google sign-out failed", MessageBoxButton.OK, MessageBoxImage.Error); }
+    }
+
+    void GoogleHelp_Click(object sender, RoutedEventArgs e) => MessageBox.Show(this,
+        "1. Open console.cloud.google.com and create or select a project.\n" +
+        "2. Enable Google Drive API.\n" +
+        "3. Configure Google Auth Platform (consent screen). If publishing status is Testing, add your Google account as a test user.\n" +
+        "4. Create an OAuth client with application type Desktop app, and download its JSON.\n" +
+        "5. Import that JSON here, then sign in. Use the same JSON and Google account on each computer.\n\n" +
+        "Testing-mode authorizations may expire after seven days. Sign in again if required.\n\n" +
+        "Sync runs from the header button and on close. Completed tasks sync without details.",
+        "Google Drive setup", MessageBoxButton.OK, MessageBoxImage.Information);
 
     void SetControls()
     {

@@ -1,9 +1,10 @@
 <Window x:Class="StickyTodo.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Settings" SizeToContent="Height" Width="390" ResizeMode="NoResize"
+        Title="Settings" SizeToContent="Height" Width="410" MaxHeight="900" ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
         Background="#FFFFFCF0" Foreground="#FF353225" FontFamily="Segoe UI" FontSize="13">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
     <StackPanel Margin="20">
         <TextBlock Text="Background color" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,12"/>
         <Border x:Name="ColorPreview" Height="42" CornerRadius="5" BorderBrush="#FFAAA597" BorderThickness="1" Margin="0,0,0,12"/>
@@ -34,6 +35,15 @@
         <TextBlock x:Name="MaxItemsError" Text="Enter a whole number from 1 to 100." Foreground="#FFB00020" Visibility="Collapsed" Margin="0,4,0,0"/>
         <CheckBox x:Name="BoldHighPriority" Content="Bold high-priority items" Checked="BoldHighPriority_Changed" Unchecked="BoldHighPriority_Changed" Margin="0,12,0,0"/>
         <TextBlock Text="Changes are previewed on your sticky note." Margin="0,10,0,16" Foreground="#FF706A58"/>
+        <TextBlock Text="Google Drive sync" FontSize="16" FontWeight="SemiBold" Margin="0,4,0,8"/>
+        <TextBlock x:Name="GoogleStatus" TextWrapping="Wrap" Margin="0,0,0,8"/>
+        <WrapPanel x:Name="GoogleActions" Margin="0,0,0,8">
+            <Button x:Name="ImportGoogleButton" Content="Import credentials…" Click="ImportGoogle_Click" Padding="8,5" Margin="0,0,6,6"/>
+            <Button x:Name="GoogleSignInButton" Content="Sign in to Google" Click="GoogleSignIn_Click" Padding="8,5" Margin="0,0,6,6"/>
+            <Button x:Name="GoogleSignOutButton" Content="Sign out" Click="GoogleSignOut_Click" Padding="8,5" Margin="0,0,0,6"/>
+        </WrapPanel>
+        <TextBlock TextWrapping="Wrap" Text="Import the OAuth Desktop app JSON from your Google Cloud project (Drive API enabled). Use the same client on each computer. Account changes take effect immediately." Foreground="#FF706A58" Margin="0,0,0,8"/>
+        <Button Content="Google setup instructions" Click="GoogleHelp_Click" HorizontalAlignment="Left" Padding="8,5" Margin="0,0,0,16"/>
         <DockPanel>
             <Button x:Name="ResetButton" Content="Reset all" Click="Reset_Click" Padding="10,5" DockPanel.Dock="Left"/>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
@@ -42,4 +52,5 @@
             </StackPanel>
         </DockPanel>
     </StackPanel>
+    </ScrollViewer>
 </Window>

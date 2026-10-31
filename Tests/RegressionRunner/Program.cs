@@ -7,13 +7,14 @@ using System.Windows.Data;
 using System.Windows.Threading;
 using StickyTodo;
 
-static class Program
+static partial class Program
 {
     [STAThread]
     static int Main()
     {
         try
         {
+            _ = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
             CheckSettingsDefaultsAndBounds();
             CheckSettingsPersistence();
             CheckSettingsDialog();
@@ -22,6 +23,13 @@ static class Program
             CheckDetailsFileFailures();
             CheckTaskStorageMigration();
             CheckDetailsWindows();
+            CheckSyncTimestampsAndStorage();
+            CheckTaskMerging();
+            CheckSyncEngine();
+            CheckSyncWindows();
+            CheckProtectedTokens();
+            CheckDriveTransport();
+            CheckGoogleConnectionAndClose();
             Console.WriteLine("All regression checks passed.");
             return 0;
         }
@@ -125,7 +133,7 @@ static class Program
         {
             Storage.SaveSettings(new AppearanceSettings { MaxItemsToDisplay = 2 });
             Storage.SaveTasks(Array.Empty<TaskItem>());
-            window = new MainWindow();
+            window = new MainWindow(enableGoogle: false);
 
             var tasks = (ObservableCollection<TaskItem>)typeof(MainWindow)
                 .GetField("_tasks", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!;
@@ -272,7 +280,7 @@ static class Program
             Storage.SaveDetails(loaded[0].Id, "Unicode Żółć ☁\nSecond line");
             Storage.SaveTasks(loaded.AsEnumerable().Reverse());
             Check(Storage.LoadTasks()[1].Id == loaded[0].Id && Storage.LoadDetails(loaded[0].Id).Contains("Second line"), "rename and reorder preserve details");
-            main = new MainWindow();
+            main = new MainWindow(enableGoogle: false);
             main.Show();
             var tasks = (ObservableCollection<TaskItem>)typeof(MainWindow).GetField("_tasks", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(main)!;
             var open = typeof(MainWindow).GetMethod("OpenDetails", BindingFlags.Instance | BindingFlags.NonPublic)!;
@@ -304,7 +312,7 @@ static class Program
             Check(File.Exists(Storage.DetailsPath(task.Id)), "undo retains the details file");
             main.Close();
             Check(Storage.LoadDetails(task.Id) == "Shutdown save", "application close flushes notes");
-            main = new MainWindow();
+            main = new MainWindow(enableGoogle: false);
             main.Show();
             windows = (Dictionary<Guid, DetailsWindow>)typeof(MainWindow).GetField("_detailsWindows", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(main)!;
             Check(windows.Count == 0, "notes are not reopened automatically on startup");
