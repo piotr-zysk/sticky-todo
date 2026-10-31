@@ -5,7 +5,7 @@ This guide applies to the whole repository. Keep it current when changing archit
 ## App and toolchain
 
 - StickyTodo is a small Windows desktop sticky-note task manager built with C# and WPF. It supports ordered tasks, priority, optional due dates/times, per-task text notes, delayed completion, appearance settings, and optional Google Drive sync.
-- The main window stays on top, uses custom borderless chrome, allows horizontal resizing, and sizes its height to the visible task count.
+- The main window stays on top, uses custom borderless chrome with rounded corners, allows horizontal resizing, and sizes its height to the visible task count.
 - `StickyTodo.csproj` targets `net10.0-windows`, enables WPF, nullable reference types, and implicit usings, and produces a `WinExe`. Use Windows with the .NET 10 SDK and Windows Desktop support for builds and execution.
 - Direct NuGet dependencies are YamlDotNet (`16.*`) and Google.Apis.Drive.v3 (`1.77.0.4301`). Check the project file before changing versions.
 - There is no solution file or separate frontend/build toolchain. Run commands from the repository root with explicit project paths.
@@ -40,6 +40,7 @@ dotnet run --project Tests/RegressionRunner/RegressionRunner.csproj
 | `Storage.cs` | DTOs, YAML serialization, details files, settings, legacy migrations, archive, snapshots, multi-file transactions and recovery. |
 | `DetailsSaveSession.cs` | UI-independent details dirty state, configurable autosave throttle, forced saves, discard and replacement rules. |
 | `DetailsWindow.xaml`, `DetailsWindow.xaml.cs` | Text editor, save timer, close-time flush, sync refresh, appearance. |
+| `RoundedBorder.cs` | Rounded window border that clips content to its inner corners (used by the main and details window templates). |
 | `AppearanceSettings.cs`, `SettingsWindow.xaml`, `SettingsWindow.xaml.cs` | Settings defaults/bounds, validation, live preview, persistence, Google account controls. |
 | `SyncSnapshot.cs` | Versioned sync schema and validation, whole-record merge, `IDriveTransport`, conditional upload retry engine. |
 | `GoogleDriveTransport.cs` | Drive folder/file discovery, snapshot download, ETag-based conditional upload, duplicate detection. |
@@ -86,6 +87,7 @@ Storage is based on the executable's directory (`Environment.ProcessPath`, falli
 
 - Checked tasks remain visible for `ItemDeleteRetentionSeconds` (default 5, minimum 0), allowing uncheck before archival. Sync and app close archive checked tasks immediately, regardless of remaining delay.
 - The list shows up to `MaxItemsToDisplay` rows (default 10, bounded 1–100) before scrolling; row height is currently 24. Preserve content-driven height and horizontal-only resizing.
+- The main and details windows are transparent (`AllowsTransparency`), so Windows does not round them; their `Window.Template` draws a `RoundedBorder` (radius 8) bound to the window `Background`, `BorderBrush`, and `BorderThickness`. Keep that binding when changing appearance code. The settings and sync-failure dialogs use standard chrome, which Windows 11 rounds itself.
 - Defaults include background `#F9EDB5`, opacity 1, and non-bold high-priority titles. Appearance application clamps opacity to 0.2–1 and chooses foreground contrast. Propagate appearance changes to open details windows.
 - `ZoomPercent` defaults to 100 and snaps to the nearest level in `AppearanceSettings.ZoomLevels` (50–150%). `Zoom.Apply` sets a `LayoutTransform` on each window's root content (`RootDock`, `RootPanel`, `RootGrid`), which also scales popups placed inside it. Window sizes scale with zoom, capped to the work area. The main window keeps its user-chosen width in unzoomed units. Keep layout constants such as row height in unscaled units. Native message boxes and file dialogs are not scaled.
 - Appearance settings edit a copy with live preview. Save persists it; Cancel restores the prior appearance. Google connection actions take effect independently of appearance Save/Cancel. Include new settings in defaults, copy/reset logic, validation, persistence, and relevant checks.

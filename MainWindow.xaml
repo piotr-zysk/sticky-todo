@@ -14,6 +14,14 @@
         <WindowChrome CaptionHeight="0" ResizeBorderThickness="0" GlassFrameThickness="0"
                       CornerRadius="0" UseAeroCaptionButtons="False"/>
     </WindowChrome.WindowChrome>
+    <Window.Template>
+        <ControlTemplate TargetType="Window">
+            <local:RoundedBorder CornerRadius="8" Background="{TemplateBinding Background}"
+                                 BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                <AdornerDecorator><ContentPresenter/></AdornerDecorator>
+            </local:RoundedBorder>
+        </ControlTemplate>
+    </Window.Template>
     <Window.Resources>
         <SolidColorBrush x:Key="TaskForeground" Color="Black"/>
         <SolidColorBrush x:Key="InputSurface" Color="#FFFFFCF0"/>
