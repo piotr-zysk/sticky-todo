@@ -23,7 +23,7 @@ Google Drive contains a `StickyTodo` folder with a versioned `sticky-todo.json` 
 - For the same ID, the later `UpdatedAt` replaces the entire other record.
 - Google wins exact timestamp ties.
 - Priority and completion changes advance `UpdatedAt`, as do title and due date/time changes.
-- Details advance `UpdatedAt` when saved, using the existing one-minute throttle. Sync and window close force pending saves.
+- Details advance `UpdatedAt` when saved, using the configured autosave interval (default 60 seconds; 0 disables autosave). Sync and window close force pending saves even when autosave is disabled.
 - Completed tasks are retained in the archive without details. A newer completion removes an older active task on another computer.
 
 Existing task order is retained locally, and newly imported tasks are appended. Appearance settings and reordering are local. Keep computer clocks correct because timestamps determine winners. Tasks independently created before sync have distinct IDs, even if their titles match.

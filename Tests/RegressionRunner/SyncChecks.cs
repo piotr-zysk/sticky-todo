@@ -233,8 +233,10 @@ static partial class Program
             Invoke<object?>(main, "OpenDetails", task);
             var notes = (Dictionary<Guid, DetailsWindow>)typeof(MainWindow).GetField("_detailsWindows", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(main)!;
             var note = notes[task.Id];
+            ApplySettings(main, new AppearanceSettings { DetailsAutoSaveIntervalSeconds = 0 });
             Find<TextBox>(note, "Editor").Text = "First";
             Find<TextBox>(note, "Editor").Text = "Pending text";
+            Check(task.HasDetails && !File.Exists(Storage.DetailsPath(task.Id)), "disabled autosave shows unsaved details before sync");
             task.EditTitle = "Committed title";
             task.IsEditingTitle = true;
             Invoke<object?>(main, "PrepareLocalForSync");
@@ -255,8 +257,15 @@ static partial class Program
             drive.Remote = Snapshot(incoming);
             FinishOnDispatcher(Invoke<Task>(main, "SynchronizeAsync", drive));
             Check(note.Title == "Incoming title" && Find<TextBox>(note, "Editor").Text == "Incoming details", "incoming task refreshes open note");
+            Check(tasks.Single().HasDetails, "incoming details update the main-list indicator");
             Check(Storage.LoadTasks().Single().UpdatedAt == incoming.UpdatedAt, "UI refresh preserves remote timestamp");
+            incoming.Details = " \r\n";
+            incoming.UpdatedAt = DateTimeOffset.UtcNow.AddMinutes(2);
+            FinishOnDispatcher(Invoke<Task>(main, "SynchronizeAsync", drive));
+            Check(!tasks.Single().HasDetails && Find<TextBox>(note, "Editor").Text == incoming.Details && tasks.Single().UpdatedAt == incoming.UpdatedAt,
+                "whitespace-only synced details clear the indicator without advancing the remote timestamp");
             Find<TextBox>(note, "Editor").Text = "Edit after sync";
+            Check(tasks.Single().HasDetails, "editing after sync updates the refreshed task indicator");
             Invoke<object?>(main, "PrepareLocalForSync");
             Check(Storage.LoadDetails(task.Id) == "Edit after sync", "existing details session saves to refreshed task instance");
             var before = File.ReadAllText(Storage.TasksPath);
@@ -267,7 +276,7 @@ static partial class Program
             drive.FailWrite = false;
             incoming.CompletedAt = DateTime.UtcNow;
             incoming.Details = "";
-            incoming.UpdatedAt = DateTimeOffset.UtcNow.AddMinutes(2);
+            incoming.UpdatedAt = DateTimeOffset.UtcNow.AddMinutes(3);
             FinishOnDispatcher(Invoke<Task>(main, "SynchronizeAsync", drive));
             Check(notes.Count == 0 && tasks.Count == 0 && !File.Exists(Storage.DetailsPath(task.Id)), "remote completion closes note and removes details");
             var defaultDialog = new SyncFailureWindow("Offline");

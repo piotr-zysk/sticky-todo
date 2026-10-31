@@ -24,7 +24,7 @@ dotnet run --project Tests/RegressionRunner/RegressionRunner.csproj
 ```
 
 - The regression runner is a console executable with a WPF-enabled, `[STAThread]` entry point, custom assertions, and dispatcher pumping. It is not an xUnit/NUnit/MSTest project; `dotnet test` does not run these checks. Success prints `All regression checks passed.` and returns exit code 0.
-- `Tests/RegressionRunner/Program.cs` covers settings, rendering, timers, details sessions/windows, file failures, and storage migration. `SyncChecks.cs` covers timestamps, transactional storage, merges, retry logic, sync UI, token protection, and Drive HTTP behavior. `ConnectionChecks.cs` covers account persistence and close behavior.
+- `Tests/RegressionRunner/Program.cs` covers settings, rendering, timers, details sessions/windows, file failures, and storage migration. `DetailsChecks.cs` covers configurable autosave, live details indicators, and settings preview/Cancel behavior. `SyncChecks.cs` covers timestamps, transactional storage, merges, retry logic, sync UI, token protection, and Drive HTTP behavior. `ConnectionChecks.cs` covers account persistence and close behavior.
 - Tests use fake transports/HTTP handlers, dummy credentials, and temporary connection directories; real Google access is unnecessary. Some storage tests temporarily replace files in the runner's executable directory and restore them in `finally`. Use disposable build output and avoid running multiple regression runners against the same output directory.
 - For code changes, build and run the regression runner. Add focused behavioral coverage to the existing runner for meaningful logic changes, especially persistence, synchronization, and failure recovery. Do not introduce a new test framework without a task-specific reason.
 - For UI changes, also check the affected flow in a Windows desktop session: keyboard/focus behavior, popups, resize/scroll behavior, and appearance where relevant. Do not claim visual verification from a build alone.
@@ -38,7 +38,7 @@ dotnet run --project Tests/RegressionRunner/RegressionRunner.csproj
 | `MainWindow.xaml`, `MainWindow.xaml.cs` | Main UI, observable task collection, edit commits, ordering/drag-and-drop, completion timers, details ownership, appearance, sync and shutdown orchestration. |
 | `TaskItem.cs` | Bindable task state and editor state, stable identity, monotonic modification timestamps, due-date formatting/parsing and overdue calculation. |
 | `Storage.cs` | DTOs, YAML serialization, details files, settings, legacy migrations, archive, snapshots, multi-file transactions and recovery. |
-| `DetailsSaveSession.cs` | UI-independent details dirty state, one-minute save throttle, forced saves, discard and replacement rules. |
+| `DetailsSaveSession.cs` | UI-independent details dirty state, configurable autosave throttle, forced saves, discard and replacement rules. |
 | `DetailsWindow.xaml`, `DetailsWindow.xaml.cs` | Text editor, save timer, close-time flush, sync refresh, appearance. |
 | `AppearanceSettings.cs`, `SettingsWindow.xaml`, `SettingsWindow.xaml.cs` | Settings defaults/bounds, validation, live preview, persistence, Google account controls. |
 | `SyncSnapshot.cs` | Versioned sync schema and validation, whole-record merge, `IDriveTransport`, conditional upload retry engine. |
@@ -89,7 +89,9 @@ Storage is based on the executable's directory (`Environment.ProcessPath`, falli
 - Defaults include background `#F9EDB5`, opacity 1, and non-bold high-priority titles. Appearance application clamps opacity to 0.2–1 and chooses foreground contrast. Propagate appearance changes to open details windows.
 - Appearance settings edit a copy with live preview. Save persists it; Cancel restores the prior appearance. Google connection actions take effect independently of appearance Save/Cancel. Include new settings in defaults, copy/reset logic, validation, persistence, and relevant checks.
 - There is one details window and one save session per task ID. Sessions survive closing/reopening a window so reopening does not reset the throttle.
-- The first dirty details save can happen immediately; subsequent saves are throttled to once per minute. Closing a note, syncing, or closing the app forces pending saves. A failed write leaves the session dirty and the editor available for retry.
+- The details button shows `+` for missing, empty, or whitespace-only details and the bubble icon otherwise. `TaskItem.HasDetails` reflects current editor text, including unsaved edits, and refreshes on load and sync; it is not persisted and does not advance `UpdatedAt`.
+- `DetailsAutoSaveIntervalSeconds` defaults to 60 and is bounded to 0–3600. Positive values allow the first dirty details save immediately and throttle subsequent saves from the last successful save; 0 disables autosave. Settings preview updates existing sessions and reschedules open notes without resetting save history; Cancel restores the previous interval.
+- Closing a note, syncing, or closing the app forces pending details saves even when autosave is disabled. A failed write leaves the session dirty and the editor available for retry; automatic retries use the configured positive interval.
 - Discard sessions when their task is completed so an old editor cannot recreate deleted details. Replacing session text from sync requires a clean, undiscarded session and must not trigger a fresh local edit.
 
 ## Google sync contract

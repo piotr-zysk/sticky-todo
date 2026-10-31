@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Input;
 using System.Windows.Threading;
 using StickyTodo;
 
@@ -20,6 +21,8 @@ static partial class Program
             CheckSettingsDialog();
             CheckTaskRenderingAndTimers();
             CheckDetailsSaving();
+            CheckConfigurableAutoSave();
+            CheckDetailsIndicatorsAndSettings();
             CheckDetailsFileFailures();
             CheckTaskStorageMigration();
             CheckDetailsWindows();
@@ -45,6 +48,7 @@ static partial class Program
         var settings = new AppearanceSettings();
         Check(settings.ItemDeleteRetentionSeconds == 5, "default retention is 5 seconds");
         Check(settings.MaxItemsToDisplay == 10, "default display limit is 10");
+        Check(settings.DetailsAutoSaveIntervalSeconds == 60, "default details autosave interval is 60 seconds");
         Check(!settings.BoldHighPriority, "bold high-priority titles default off");
 
         settings.ItemDeleteRetentionSeconds = -1;
@@ -53,6 +57,10 @@ static partial class Program
         Check(settings.MaxItemsToDisplay == 1, "display limit is clamped to at least one");
         settings.MaxItemsToDisplay = 101;
         Check(settings.MaxItemsToDisplay == 100, "display limit is clamped to at most 100");
+        settings.DetailsAutoSaveIntervalSeconds = -1;
+        Check(settings.DetailsAutoSaveIntervalSeconds == 0, "negative autosave intervals clamp to disabled");
+        settings.DetailsAutoSaveIntervalSeconds = 3601;
+        Check(settings.DetailsAutoSaveIntervalSeconds == 3600, "autosave interval is clamped to one hour");
     }
 
     static void CheckSettingsPersistence()
@@ -63,19 +71,28 @@ static partial class Program
         {
             File.WriteAllText(path, "backgroundColor: '#AABBCC'\nopacity: 0.8\n");
             var legacy = Storage.LoadSettings();
-            Check(legacy.ItemDeleteRetentionSeconds == 5 && legacy.MaxItemsToDisplay == 10 && !legacy.BoldHighPriority,
+            Check(legacy.ItemDeleteRetentionSeconds == 5 && legacy.MaxItemsToDisplay == 10 && !legacy.BoldHighPriority && legacy.DetailsAutoSaveIntervalSeconds == 60,
                 "settings missing new keys use backward-compatible defaults");
 
             var saved = new AppearanceSettings
             {
                 ItemDeleteRetentionSeconds = 0,
                 MaxItemsToDisplay = 37,
+                DetailsAutoSaveIntervalSeconds = 3600,
                 BoldHighPriority = true
             };
             Storage.SaveSettings(saved);
             var loaded = Storage.LoadSettings();
-            Check(loaded.ItemDeleteRetentionSeconds == 0 && loaded.MaxItemsToDisplay == 37 && loaded.BoldHighPriority,
+            Check(loaded.ItemDeleteRetentionSeconds == 0 && loaded.MaxItemsToDisplay == 37 && loaded.BoldHighPriority && loaded.DetailsAutoSaveIntervalSeconds == 3600,
                 "settings survive YAML save and load");
+            saved.DetailsAutoSaveIntervalSeconds = 0;
+            Storage.SaveSettings(saved);
+            Check(Storage.LoadSettings().DetailsAutoSaveIntervalSeconds == 0 && File.ReadAllText(path).Contains("detailsAutoSaveIntervalSeconds: 0"),
+                "disabled autosave persists with the camelCase settings key");
+            File.WriteAllText(path, "detailsAutoSaveIntervalSeconds: -10\n");
+            Check(Storage.LoadSettings().DetailsAutoSaveIntervalSeconds == 0, "negative YAML autosave intervals clamp to zero");
+            File.WriteAllText(path, "detailsAutoSaveIntervalSeconds: 9999\n");
+            Check(Storage.LoadSettings().DetailsAutoSaveIntervalSeconds == 3600, "excessive YAML autosave intervals clamp to one hour");
         }
         finally
         {
@@ -88,12 +105,13 @@ static partial class Program
         var original = new AppearanceSettings
         {
             ItemDeleteRetentionSeconds = 8,
-            MaxItemsToDisplay = 20
+            MaxItemsToDisplay = 20,
+            DetailsAutoSaveIntervalSeconds = 120
         };
         int previews = 0;
         var dialog = new SettingsWindow(original, _ => previews++);
         Check(!ReferenceEquals(original, dialog.Settings), "dialog edits a copied settings object");
-        Check(dialog.Settings.ItemDeleteRetentionSeconds == 8 && dialog.Settings.MaxItemsToDisplay == 20,
+        Check(dialog.Settings.ItemDeleteRetentionSeconds == 8 && dialog.Settings.MaxItemsToDisplay == 20 && dialog.Settings.DetailsAutoSaveIntervalSeconds == 120,
             "dialog copies the configured values");
         Check(Find<Button>(dialog, "SaveButton").IsEnabled, "valid settings enable Save");
 
@@ -109,6 +127,20 @@ static partial class Program
         Check(Find<Button>(dialog, "SaveButton").IsEnabled, "boundary values are accepted");
         Check(dialog.Settings.ItemDeleteRetentionSeconds == 0 && dialog.Settings.MaxItemsToDisplay == 100,
             "valid numeric changes update the dialog settings");
+        var autoSaveInterval = Find<TextBox>(dialog, "DetailsAutoSaveIntervalSeconds");
+        foreach (var invalid in new[] { "", "abc", "1.5", "-1", "3601" })
+        {
+            autoSaveInterval.Text = invalid;
+            Check(!Find<Button>(dialog, "SaveButton").IsEnabled && Find<TextBlock>(dialog, "AutoSaveIntervalError").Visibility == Visibility.Visible,
+                $"invalid autosave interval '{invalid}' shows an error and disables Save");
+            Check(dialog.Settings.DetailsAutoSaveIntervalSeconds == 120, "invalid intervals do not change the last valid setting");
+        }
+        foreach (var valid in new[] { 0, 1, 3600 })
+        {
+            autoSaveInterval.Text = valid.ToString();
+            Check(Find<Button>(dialog, "SaveButton").IsEnabled && dialog.Settings.DetailsAutoSaveIntervalSeconds == valid &&
+                  Find<TextBlock>(dialog, "AutoSaveIntervalError").Visibility == Visibility.Collapsed, "valid autosave boundaries update settings and clear validation");
+        }
 
         Find<CheckBox>(dialog, "BoldHighPriority").IsChecked = true;
         Check(dialog.Settings.BoldHighPriority && previews > 0, "bold preference updates and previews");
@@ -119,8 +151,8 @@ static partial class Program
 
         Find<Button>(dialog, "ResetButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         Check(dialog.Settings.ItemDeleteRetentionSeconds == 5 && dialog.Settings.MaxItemsToDisplay == 10 &&
-              !dialog.Settings.BoldHighPriority, "Reset all restores the new defaults");
-        Check(original.ItemDeleteRetentionSeconds == 8 && original.MaxItemsToDisplay == 20,
+              !dialog.Settings.BoldHighPriority && dialog.Settings.DetailsAutoSaveIntervalSeconds == 60 && autoSaveInterval.Text == "60", "Reset all restores the new defaults");
+        Check(original.ItemDeleteRetentionSeconds == 8 && original.MaxItemsToDisplay == 20 && original.DetailsAutoSaveIntervalSeconds == 120,
             "dialog edits do not mutate the original settings");
     }
 
@@ -302,6 +334,11 @@ static partial class Program
             Check(Storage.LoadDetails(task.Id) == "First edit", "window throttles subsequent edits");
             note.Close();
             Check(Storage.LoadDetails(task.Id) == "Pending edit\nŻółć" && windows.Count == 0, "note close flushes pending text and unregisters window");
+            open.Invoke(main, new object[] { task });
+            editor = Find<TextBox>(windows[task.Id], "Editor");
+            editor.Text = "Escape edit";
+            editor.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(editor)!, 0, Key.Escape) { RoutedEvent = Keyboard.PreviewKeyDownEvent });
+            Check(Storage.LoadDetails(task.Id) == "Escape edit" && windows.Count == 0, "Escape closes the note and flushes pending text");
             open.Invoke(main, new object[] { task });
             note = windows[task.Id];
             ApplySettings(main, new AppearanceSettings { Opacity = 0.8 });
