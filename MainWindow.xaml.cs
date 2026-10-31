@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
 
@@ -32,7 +33,11 @@ public partial class MainWindow : Window
         ApplyAppearance(_settings);
         foreach (var t in Storage.LoadTasks()) Attach(t, false);
         TaskList.ItemsSource = _tasks;
-        _tasks.CollectionChanged += (_, _) => UpdateListHeight();
+        _tasks.CollectionChanged += (_, _) =>
+        {
+            UpdateListHeight();
+            Dispatcher.BeginInvoke(UpdateListHeight, DispatcherPriority.Loaded);
+        };
         _overdueTimer.Tick += (_, _) => { foreach (var t in _tasks) t.RefreshOverdue(); };
         _overdueTimer.Start();
         Closing += OnClosing;
@@ -41,25 +46,37 @@ public partial class MainWindow : Window
 
     void UpdateListHeight()
     {
-        double want = ItemHeight * Math.Clamp(_tasks.Count, 1, _settings.MaxItemsToDisplay);
-        if (SizeToContent == SizeToContent.Manual)
-        {
-            if (!IsLoaded) return;
-            UpdateLayout();
-            double avail = RootDock.ActualHeight - HeaderBar.ActualHeight - (AddPanel.IsVisible ? AddPanel.ActualHeight : 0);
-            TaskList.Height = Math.Min(want, Math.Max(ItemHeight, avail));
-        }
-        else
-        {
-            TaskList.Height = want;
-        }
+        int max = _settings.MaxItemsToDisplay;
+        TaskList.Height = ItemHeight * Math.Clamp(_tasks.Count, 1, max);
+        ScrollViewer.SetVerticalScrollBarVisibility(TaskList,
+            _tasks.Count > max ? ScrollBarVisibility.Auto : ScrollBarVisibility.Hidden);
     }
 
-    void Window_SizeChanged(object sender, SizeChangedEventArgs e) =>
-        Dispatcher.BeginInvoke(UpdateListHeight, DispatcherPriority.Loaded);
+    // Resizing by the user makes WPF drop SizeToContent; restore it so the height keeps following the items.
+    void Window_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (SizeToContent != SizeToContent.Height)
+            Dispatcher.BeginInvoke(() => SizeToContent = SizeToContent.Height, DispatcherPriority.Loaded);
+    }
 
-    void AddPanel_VisibilityChanged(object sender, DependencyPropertyChangedEventArgs e) =>
-        Dispatcher.BeginInvoke(UpdateListHeight, DispatcherPriority.Loaded);
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+        ((HwndSource)PresentationSource.FromVisual(this)).AddHook(LockVerticalResize);
+    }
+
+    // Only the left/right edges resize the window (WindowChrome's own resize border is disabled).
+    IntPtr LockVerticalResize(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        const int WM_NCHITTEST = 0x0084, HTCLIENT = 1, HTLEFT = 10, HTRIGHT = 11, EdgeWidth = 5;
+        if (msg != WM_NCHITTEST) return IntPtr.Zero;
+        int x = (short)((long)lParam & 0xFFFF);
+        var local = PointFromScreen(new Point(x, 0)).X;
+        handled = true;
+        if (local < EdgeWidth) return (IntPtr)HTLEFT;
+        if (local > ActualWidth - EdgeWidth) return (IntPtr)HTRIGHT;
+        return (IntPtr)HTCLIENT;
+    }
 
     void Attach(TaskItem t, bool top)
     {
