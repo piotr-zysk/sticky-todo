@@ -19,6 +19,8 @@ public static class Choices
 public partial class MainWindow : Window
 {
     readonly ObservableCollection<TaskItem> _tasks = new();
+    readonly Dictionary<Guid, DetailsWindow> _detailsWindows = new();
+    readonly Dictionary<Guid, DetailsSaveSession> _detailsSessions = new();
     AppearanceSettings _settings = new();
     readonly DispatcherTimer _overdueTimer = new() { Interval = TimeSpan.FromSeconds(30) };
     Point _dragStart;
@@ -116,18 +118,81 @@ public partial class MainWindow : Window
 
     void Complete(TaskItem t)
     {
-        if (!_tasks.Remove(t)) return;
-        t.PropertyChanged -= OnItemChanged;
-        Storage.Archive(t);
-        Save();
+        if (!_tasks.Contains(t)) return;
+        try
+        {
+            Storage.Archive(t);
+            Storage.DeleteDetails(t.Id);
+            Storage.SaveTasks(_tasks.Where(item => item != t));
+            if (_detailsWindows.TryGetValue(t.Id, out var note)) note.DiscardAndClose();
+            _detailsSessions.Remove(t.Id);
+            _tasks.Remove(t);
+            t.PropertyChanged -= OnItemChanged;
+        }
+        catch (Exception ex)
+        {
+            t.IsDone = false;
+            MessageBox.Show(this, $"Could not complete the task. Please retry.\n\n{ex.Message}", "Task completion failed", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     void OnClosing(object? sender, CancelEventArgs e)
     {
+        CommitAllEdits();
+        try
+        {
+            foreach (var pair in _detailsWindows)
+                if (!_tasks.Any(t => t.Id == pair.Key && t.IsDone)) pair.Value.Flush();
+        }
+        catch (Exception ex)
+        {
+            e.Cancel = true;
+            MessageBox.Show(this, $"Could not save task details. The application will stay open so you can retry.\n\n{ex.Message}", "Save failed", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
         foreach (var t in _tasks.Where(x => x.IsDone).ToList())
         {
             t.RemoveTimer?.Stop();
             Complete(t);
+            if (_tasks.Contains(t)) { e.Cancel = true; return; }
+        }
+        foreach (var note in _detailsWindows.Values.ToList()) note.Close();
+        if (_detailsWindows.Count > 0) { e.Cancel = true; return; }
+        _overdueTimer.Stop();
+    }
+
+    void Details_Click(object sender, RoutedEventArgs e)
+    {
+        e.Handled = true;
+        if (ItemOf(sender) is not { } task) return;
+        OpenDetails(task);
+    }
+
+    void OpenDetails(TaskItem task)
+    {
+        if (_detailsWindows.TryGetValue(task.Id, out var existing))
+        {
+            if (existing.WindowState == WindowState.Minimized) existing.WindowState = WindowState.Normal;
+            existing.Activate();
+            return;
+        }
+        try
+        {
+            Save(); // Persist identity before creating any details file.
+            if (!_detailsSessions.TryGetValue(task.Id, out var session))
+            {
+                session = new DetailsSaveSession(Storage.LoadDetails(task.Id), text => Storage.SaveDetails(task.Id, text));
+                _detailsSessions.Add(task.Id, session);
+            }
+            var note = new DetailsWindow(task, session) { Owner = this, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+            note.ApplyAppearance(Background, HeaderBar.Background, Foreground, Opacity);
+            _detailsWindows.Add(task.Id, note);
+            note.Closed += (_, _) => _detailsWindows.Remove(task.Id);
+            note.Show();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, $"Could not open task details.\n\n{ex.Message}", "Details unavailable", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
@@ -170,6 +235,8 @@ public partial class MainWindow : Window
         Resources["TaskForeground"] = foreground;
         Resources["HighPriorityFontWeight"] = settings.BoldHighPriority ? FontWeights.Bold : FontWeights.Normal;
         Opacity = settings.Opacity;
+        foreach (var note in _detailsWindows.Values)
+            note.ApplyAppearance(Background, HeaderBar.Background, Foreground, Opacity);
         UpdateListHeight();
     }
 
@@ -400,7 +467,7 @@ public partial class MainWindow : Window
     {
         _dragItem = null;
         var src = e.OriginalSource as DependencyObject;
-        if (FindAncestor<TextBox>(src) != null || FindAncestor<CheckBox>(src) != null || FindAncestor<ScrollBar>(src) != null) return;
+        if (FindAncestor<TextBox>(src) != null || FindAncestor<Button>(src) != null || FindAncestor<CheckBox>(src) != null || FindAncestor<ScrollBar>(src) != null) return;
         var lbi = FindAncestor<ListBoxItem>(src);
         if (lbi?.DataContext is TaskItem t && !t.IsDone)
         {

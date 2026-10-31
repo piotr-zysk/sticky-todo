@@ -189,6 +189,7 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="18"/>
                     <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="26"/>
                     <ColumnDefinition Width="Auto" MinWidth="110"/>
                 </Grid.ColumnDefinitions>
 
@@ -251,7 +252,12 @@
                     </TextBox>
                 </Grid>
 
-                <Grid Grid.Column="3" x:Name="DueHost">
+                <Button Grid.Column="3" x:Name="DetailsButton" Click="Details_Click" ToolTip="Task details" AutomationProperties.Name="Task details"
+                        Style="{StaticResource FlatBtn}" Width="24" Height="22" MinHeight="0" Padding="4">
+                    <Path Width="15" Height="14" Stretch="Uniform" Stroke="#FF909090" StrokeThickness="1.2"
+                          Data="M 2,1 L 13,1 Q 15,1 15,3 L 15,9 Q 15,11 13,11 L 7,11 L 3,14 L 3,11 L 2,11 Q 0,11 0,9 L 0,3 Q 0,1 2,1 Z"/>
+                </Button>
+                <Grid Grid.Column="4" x:Name="DueHost">
                     <TextBlock Text="{Binding DueText}" Margin="8,0,8,0" VerticalAlignment="Center"
                                HorizontalAlignment="Right" Cursor="Hand" Background="Transparent"
                                MouseLeftButtonUp="Due_Click">
@@ -305,7 +311,7 @@
                     </Popup>
                 </Grid>
 
-                <Rectangle Grid.ColumnSpan="4" Height="2" Fill="#FF2060D0" VerticalAlignment="Top" IsHitTestVisible="False">
+                <Rectangle Grid.ColumnSpan="5" Height="2" Fill="#FF2060D0" VerticalAlignment="Top" IsHitTestVisible="False">
                     <Rectangle.Style>
                         <Style TargetType="Rectangle">
                             <Setter Property="Visibility" Value="Collapsed"/>
@@ -317,7 +323,7 @@
                         </Style>
                     </Rectangle.Style>
                 </Rectangle>
-                <Rectangle Grid.ColumnSpan="4" Height="2" Fill="#FF2060D0" VerticalAlignment="Bottom" IsHitTestVisible="False">
+                <Rectangle Grid.ColumnSpan="5" Height="2" Fill="#FF2060D0" VerticalAlignment="Bottom" IsHitTestVisible="False">
                     <Rectangle.Style>
                         <Style TargetType="Rectangle">
                             <Setter Property="Visibility" Value="Collapsed"/>

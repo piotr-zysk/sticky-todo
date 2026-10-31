@@ -7,6 +7,7 @@ namespace StickyTodo;
 
 public class TaskItem : INotifyPropertyChanged
 {
+    public Guid Id { get; init; } = Guid.NewGuid();
     string _title = "";
     DateTime? _date;
     TimeSpan? _time;
