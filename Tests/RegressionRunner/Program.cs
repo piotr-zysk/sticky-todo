@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Threading;
 using StickyTodo;
 
@@ -240,6 +241,14 @@ static partial class Program
                 double expected = rootDock.ActualHeight * zoomPercent / 100 + window.BorderThickness.Top + window.BorderThickness.Bottom;
                 Check(Math.Abs(window.ActualHeight - expected) < 2, $"main window height follows {zoomPercent}% zoom ({window.ActualHeight} vs {expected})");
                 Check(Math.Abs(window.ActualWidth - Math.Min(8 * zoomPercent, SystemParameters.WorkArea.Width)) < 2, $"main window width follows {zoomPercent}% zoom ({window.ActualWidth})");
+            }
+
+            var syncButton = Find<Button>(window, "SyncButton");
+            foreach (var (background, expected) in new[] { ("#202020", Colors.White), ("#F9EDB5", Color.FromRgb(53, 50, 37)) })
+            {
+                preview.BackgroundColor = background;
+                ApplySettings(window, preview);
+                Check(syncButton.Foreground is SolidColorBrush { Color: var c } && c == expected, $"header icons contrast with {background} background");
             }
 
             var undo = new TaskItem { Title = "Undo completion" };
