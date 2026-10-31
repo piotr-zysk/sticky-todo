@@ -253,14 +253,16 @@
                                MouseLeftButtonUp="Due_Click">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">
-                                <Setter Property="Foreground" Value="#FF444444"/>
+                                <Setter Property="Foreground" Value="{DynamicResource TaskForeground}"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding HasDue}" Value="False">
-                                        <Setter Property="Foreground" Value="#FF9A8F4D"/>
                                         <Setter Property="FontStyle" Value="Italic"/>
                                     </DataTrigger>
                                     <DataTrigger Binding="{Binding IsOverdue}" Value="True">
                                         <Setter Property="Foreground" Value="Red"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsDone}" Value="True">
+                                        <Setter Property="Foreground" Value="Gray"/>
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -346,6 +348,7 @@
                     </StackPanel>
                 </Button>
                 <Button Style="{StaticResource FlatBtn}" Content="&#x2013;" ToolTip="Minimize" Click="Minimize_Click"/>
+                <Button Style="{StaticResource FlatBtn}" Content="&#x00D7;" ToolTip="Close" AutomationProperties.Name="Close" Click="Close_Click"/>
             </StackPanel>
         </Grid>
 

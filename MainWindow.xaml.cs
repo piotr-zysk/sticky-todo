@@ -134,6 +134,8 @@ public partial class MainWindow : Window
 
     void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
 
+    void Close_Click(object sender, RoutedEventArgs e) => Close();
+
     void ApplyAppearance(AppearanceSettings settings)
     {
         Color color;
