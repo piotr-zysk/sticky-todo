@@ -1,5 +1,9 @@
 # Version history
 
+## 1.4.0 — 2026-11-04
+
+- Default the due date to today when adding a task on top.
+
 ## 1.3.0 — 2026-11-04
 
 - Move the task details button before the title.

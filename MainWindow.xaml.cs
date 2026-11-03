@@ -615,6 +615,7 @@ public partial class MainWindow : Window
         var title = NewTitle.Text.Trim();
         if (title.Length == 0) return;
         var date = NewDate.SelectedDate;
+        if (top && !date.HasValue) date = DateTime.Today;
         TimeSpan? time = null;
         if (!string.IsNullOrWhiteSpace(NewTime.Text))
         {

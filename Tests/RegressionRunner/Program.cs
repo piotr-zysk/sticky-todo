@@ -21,6 +21,7 @@ static partial class Program
             CheckSettingsPersistence();
             CheckSettingsDialog();
             CheckDueTextFormatting();
+            CheckAddTaskDates();
             CheckTaskRenderingAndTimers();
             CheckDetailsSaving();
             CheckConfigurableAutoSave();
@@ -117,6 +118,90 @@ static partial class Program
         var dueSoon = DateTime.Now.AddHours(1);
         timedSoon.SetDue(dueSoon.Date, dueSoon.TimeOfDay);
         Check(timedSoon.DueText == dueSoon.ToString("HH:mm"), "DueText displays only the time for a timed task within 24 hours");
+    }
+
+    static void CheckAddTaskDates()
+    {
+        var paths = new[] { Storage.SettingsPath, Storage.TasksPath, Storage.ArchivePath };
+        var backups = paths.Select(Backup).ToArray();
+        MainWindow? window = null;
+        try
+        {
+            Storage.SaveTasks(Array.Empty<TaskItem>());
+            window = new MainWindow(enableGoogle: false);
+            window.Show();
+            PumpDispatcher(TimeSpan.FromMilliseconds(10));
+
+            var tasks = (ObservableCollection<TaskItem>)typeof(MainWindow)
+                .GetField("_tasks", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!;
+            var addNew = typeof(MainWindow).GetMethod("AddNew", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            var title = Find<TextBox>(window, "NewTitle");
+            var date = Find<DatePicker>(window, "NewDate");
+            var time = Find<TextBox>(window, "NewTime");
+            void Add(string taskTitle, bool top, DateTime? selectedDate = null, string timeText = "")
+            {
+                title.Text = taskTitle;
+                date.SelectedDate = selectedDate;
+                time.Text = timeText;
+                addNew.Invoke(window, new object[] { top });
+            }
+
+            var today = DateTime.Today;
+            Add("Top default date", true);
+            Check(tasks.Single(task => task.Title == "Top default date").DueDate == today &&
+                  Storage.LoadTasks().Single(task => task.Title == "Top default date").DueDate == today,
+                "top insertion defaults to and persists today's date");
+
+            var explicitDate = today.AddDays(3);
+            Add("Top explicit date", true, explicitDate, "8:15");
+            var explicitTask = tasks.Single(task => task.Title == "Top explicit date");
+            Check(explicitTask.DueDate == explicitDate && explicitTask.DueTime == new TimeSpan(8, 15, 0) &&
+                  Storage.LoadTasks().Single(task => task.Title == "Top explicit date").DueDate == explicitDate,
+                "top insertion preserves an explicitly selected date and persists it");
+
+            var topTimeText = DateTime.Now.TimeOfDay > TimeSpan.FromMinutes(1)
+                ? DateTime.Now.AddMinutes(-1).ToString("HH:mm")
+                : "00:00";
+            TaskItem.TryParseTime(topTimeText, out var topTime);
+            Add("Top time without date", true, timeText: topTimeText);
+            var topTimedTask = tasks.Single(task => task.Title == "Top time without date");
+            Check(topTimedTask.DueDate == today && topTimedTask.DueTime == topTime &&
+                  Storage.LoadTasks().Single(task => task.Title == "Top time without date").DueDate == today,
+                "top time-only input uses today's date instead of shifting a past time to tomorrow");
+
+            Add("Bottom without date", false);
+            Check(tasks.Single(task => task.Title == "Bottom without date").DueDate == null &&
+                  Storage.LoadTasks().Single(task => task.Title == "Bottom without date").DueDate == null,
+                "bottom insertion without a date remains undated");
+
+            title.Text = "Bottom Enter time";
+            date.SelectedDate = null;
+            time.Text = "00:00";
+            var now = DateTime.Now;
+            var expectedBottomDate = now.Date.AddDays(TimeSpan.Zero < now.TimeOfDay ? 1 : 0);
+            var enter = new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(window)!, 0, Key.Enter)
+            {
+                RoutedEvent = Keyboard.PreviewKeyDownEvent
+            };
+            typeof(MainWindow).GetMethod("AddPanel_PreviewKeyDown", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .Invoke(window, new object[] { Find<Border>(window, "AddPanel"), enter });
+            var bottomTimedTask = tasks.Single(task => task.Title == "Bottom Enter time");
+            Check(enter.Handled && bottomTimedTask.DueDate == expectedBottomDate && bottomTimedTask.DueTime == TimeSpan.Zero &&
+                  Storage.LoadTasks().Single(task => task.Title == "Bottom Enter time").DueDate == expectedBottomDate,
+                "Enter keeps bottom time-only next-occurrence inference and persists the date");
+
+            int countBeforeInvalid = tasks.Count;
+            Add("   ", true);
+            Check(tasks.Count == countBeforeInvalid, "blank titles do not add tasks");
+            Add("Invalid time", true, timeText: "25:00");
+            Check(tasks.Count == countBeforeInvalid && Find<TextBlock>(window, "AddError").Visibility == Visibility.Visible,
+                "invalid times are rejected without adding tasks");
+        }
+        finally
+        {
+            window?.Close();
+            for (int i = 0; i < paths.Length; i++) Restore(paths[i], backups[i]);
+        }
     }
 
     static void CheckSettingsPersistence()
