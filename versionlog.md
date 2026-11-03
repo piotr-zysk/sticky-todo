@@ -1,5 +1,9 @@
 # Version history
 
+## 1.3.0 — 2026-11-04
+
+- Move the task details button before the title.
+
 ## 1.2.0 — 2026-11-04
 
 - Show only the time for timed tasks due within 24 hours and size the due column to its content.

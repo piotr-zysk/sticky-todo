@@ -492,8 +492,14 @@ static partial class Program
         var template = (DataTemplate)window.FindResource("TaskTemplate");
         var root = (FrameworkElement)template.LoadContent();
         var taskGrid = (Grid)root;
+        var detailsButton = (Button)root.FindName("DetailsButton")!;
+        var titleHost = (Grid)root.FindName("TaskTitleHost")!;
         var dueColumn = taskGrid.ColumnDefinitions[4];
         var title = (TextBlock)root.FindName("TaskTitle")!;
+        Check(Grid.GetColumn(detailsButton) < Grid.GetColumn(titleHost),
+            "details button appears before the task title");
+        Check(taskGrid.ColumnDefinitions[Grid.GetColumn(titleHost)].Width == new GridLength(1, GridUnitType.Star),
+            "task title retains the flexible column");
         var highTrigger = title.Style.Triggers.OfType<DataTrigger>().Single(trigger =>
             trigger.Binding is Binding binding && binding.Path?.Path == nameof(TaskItem.IsHigh));
         Check(string.Equals(highTrigger.Value?.ToString(), "True", StringComparison.OrdinalIgnoreCase) && highTrigger.Setters.OfType<Setter>().Any(setter => setter.Property == TextBlock.FontWeightProperty),

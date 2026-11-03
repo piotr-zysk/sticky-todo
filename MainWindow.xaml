@@ -300,8 +300,8 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="18"/>
-                    <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="26"/>
+                    <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
@@ -324,7 +324,7 @@
                     </TextBlock>
                 </Border>
 
-                <Grid Grid.Column="2">
+                <Grid Grid.Column="3" x:Name="TaskTitleHost">
                     <TextBlock x:Name="TaskTitle" Text="{Binding Title}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                Cursor="IBeam" Background="Transparent" MouseLeftButtonUp="Title_Click">
                         <TextBlock.Style>
@@ -364,7 +364,7 @@
                     </TextBox>
                 </Grid>
 
-                <Button Grid.Column="3" x:Name="DetailsButton" Click="Details_Click" ToolTip="Task details" AutomationProperties.Name="Task details"
+                <Button Grid.Column="2" x:Name="DetailsButton" Click="Details_Click" ToolTip="Task details" AutomationProperties.Name="Task details"
                         Style="{StaticResource FlatBtn}" Width="24" Height="22" MinHeight="0" Padding="4">
                     <Grid Width="15" Height="14">
                         <Path x:Name="DetailsIcon" Stretch="Uniform" Stroke="#FF909090" StrokeThickness="1.2"
