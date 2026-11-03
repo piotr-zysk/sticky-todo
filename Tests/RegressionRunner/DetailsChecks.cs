@@ -8,6 +8,49 @@ using StickyTodo;
 
 static partial class Program
 {
+    static void CheckDetailsCopy()
+    {
+        var task = new TaskItem { Title = "Copy title Ω", UpdatedAt = Baseline };
+        var originalTimestamp = task.UpdatedAt;
+        var writes = new List<string>();
+        var session = new DetailsSaveSession("Initial details", writes.Add) { AutoSaveIntervalSeconds = 0 };
+        var note = new DetailsWindow(task, session);
+        try
+        {
+            note.Show();
+            PumpDispatcher(TimeSpan.FromMilliseconds(10));
+            var copyButton = Find<Button>(note, "CopyButton");
+            Check(System.Windows.Automation.AutomationProperties.GetName(copyButton) == "Copy task title and details",
+                "copy button has an accessible name");
+            var editor = Find<TextBox>(note, "Editor");
+            editor.Text = "Unsaved Żółć ☁\nSecond line";
+            copyButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Check(Clipboard.GetText(TextDataFormat.UnicodeText) == $"{task.Title}\n\n{editor.Text}",
+                "copy button puts the title and unsaved Unicode details on the clipboard");
+            Check(session.IsDirty && writes.Count == 0 && task.UpdatedAt == originalTimestamp,
+                "copying unsaved details does not save or change the task timestamp");
+
+            editor.Text = "";
+            copyButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Check(Clipboard.GetText(TextDataFormat.UnicodeText) == $"{task.Title}\n\n",
+                "copying empty details preserves the title separator");
+            Check(session.IsDirty && writes.Count == 0 && task.UpdatedAt == originalTimestamp,
+                "copying empty details leaves the edit pending without changing its timestamp");
+
+            session.Save(force: true);
+            writes.Clear();
+            var refreshedTask = new TaskItem { Title = "Refreshed title", UpdatedAt = Baseline };
+            var refreshedTimestamp = refreshedTask.UpdatedAt;
+            note.RefreshTask(refreshedTask, "Refreshed details ☃");
+            copyButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Check(Clipboard.GetText(TextDataFormat.UnicodeText) == $"{refreshedTask.Title}\n\nRefreshed details ☃",
+                "copy uses the current task and details after a sync refresh");
+            Check(!session.IsDirty && writes.Count == 0 && refreshedTask.UpdatedAt == refreshedTimestamp,
+                "copying refreshed details does not save or touch the refreshed task");
+        }
+        finally { note.Close(); }
+    }
+
     static void CheckConfigurableAutoSave()
     {
         foreach (var interval in new[] { 1, 7, 120, 3600 })

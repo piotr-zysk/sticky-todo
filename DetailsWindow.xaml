@@ -18,9 +18,14 @@
     </Window.Template>
     <DockPanel x:Name="RootPanel" Margin="5">
         <Grid x:Name="HeaderBar" DockPanel.Dock="Top" Height="30" MouseLeftButtonDown="Header_MouseLeftButtonDown">
-            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="30"/></Grid.ColumnDefinitions>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="30"/><ColumnDefinition Width="30"/></Grid.ColumnDefinitions>
             <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="7,0" FontWeight="SemiBold"/>
-            <Button Grid.Column="1" Content="&#x2715;" Background="Transparent" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}"
+            <Button x:Name="CopyButton" Grid.Column="1" Background="Transparent" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}"
+                    BorderThickness="0" Cursor="Hand" ToolTip="Copy title and details" AutomationProperties.Name="Copy task title and details" Click="Copy_Click">
+                <Path Width="14" Height="14" Stretch="Uniform" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}" StrokeThickness="1" Opacity="0.7"
+                      Data="M 5,1 L 13,1 13,11 5,11 Z M 3,3 L 1,3 1,13 10,13 10,11"/>
+            </Button>
+            <Button Grid.Column="2" Content="&#x2715;" Background="Transparent" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}"
                     BorderThickness="0" Cursor="Hand" ToolTip="Close details" AutomationProperties.Name="Close details" Click="Close_Click"/>
         </Grid>
         <TextBox x:Name="Editor" AcceptsReturn="True" AcceptsTab="True" TextWrapping="Wrap"

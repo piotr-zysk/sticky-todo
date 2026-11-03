@@ -25,6 +25,7 @@ static partial class Program
             CheckTaskRenderingAndTimers();
             CheckDetailsSaving();
             CheckConfigurableAutoSave();
+            CheckDetailsCopy();
             CheckDetailsIndicatorsAndSettings();
             CheckDetailsFileFailures();
             CheckTaskStorageMigration();

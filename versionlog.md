@@ -1,5 +1,13 @@
 # Version history
 
+## 1.6.0 — 2026-11-04
+
+- Make the details-window copy icon lighter and more subtle.
+
+## 1.5.0 — 2026-11-04
+
+- Add a details-window copy button for the task title and current details text.
+
 ## 1.4.0 — 2026-11-04
 
 - Default the due date to today when adding a task on top.

@@ -89,6 +89,15 @@ public partial class DetailsWindow : Window
         }
     }
 
+    void Copy_Click(object sender, RoutedEventArgs e)
+    {
+        try { Clipboard.SetText($"{((TaskItem)DataContext).Title}\n\n{Editor.Text}", TextDataFormat.UnicodeText); }
+        catch (System.Runtime.InteropServices.ExternalException ex)
+        {
+            MessageBox.Show(this, $"Could not copy task details. Another application may be using the clipboard.\n\n{ex.Message}", "Copy failed", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
     public void ApplyAppearance(Brush background, Brush header, Brush foreground, double opacity, double zoom = 1)
     {
         Background = background;
