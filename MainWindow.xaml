@@ -302,7 +302,7 @@
                     <ColumnDefinition Width="18"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="26"/>
-                    <ColumnDefinition Width="Auto" MinWidth="110"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
                 <CheckBox Grid.Column="0" Margin="6,0,4,0" VerticalAlignment="Center"

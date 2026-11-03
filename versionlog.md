@@ -1,5 +1,9 @@
 # Version history
 
+## 1.2.0 — 2026-11-04
+
+- Show only the time for timed tasks due within 24 hours and size the due column to its content.
+
 ## 1.1.0 — 2026-11-04
 
 - Give buttons and text fields in the settings window rounded corners and clear interaction feedback.

@@ -64,13 +64,23 @@ public class TaskItem : INotifyPropertyChanged
 
     public bool IsOverdue => !_done && Due.HasValue && Due.Value < DateTime.Now;
 
-    public string DueText => !_date.HasValue
-        ? "+ date"
-        : _date.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + (_time.HasValue ? " " + _time.Value.ToString(@"hh\:mm") : "");
+    public string DueText => FormatDueText(DateTime.Now);
+
+    public string FormatDueText(DateTime now)
+    {
+        if (!_date.HasValue) return "+ date";
+        if (_time.HasValue && _date.Value + _time.Value - now < TimeSpan.FromHours(24))
+            return _time.Value.ToString(@"hh\:mm");
+        return _date.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+    }
 
     public bool HasDue => _date.HasValue;
 
-    public void RefreshOverdue() => Raise(nameof(IsOverdue));
+    public void RefreshOverdue()
+    {
+        Raise(nameof(IsOverdue));
+        Raise(nameof(DueText));
+    }
 
     public string? DueSerialized => !_date.HasValue
         ? null

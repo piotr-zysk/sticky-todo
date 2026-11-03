@@ -20,6 +20,7 @@ static partial class Program
             CheckSettingsDefaultsAndBounds();
             CheckSettingsPersistence();
             CheckSettingsDialog();
+            CheckDueTextFormatting();
             CheckTaskRenderingAndTimers();
             CheckDetailsSaving();
             CheckConfigurableAutoSave();
@@ -71,6 +72,51 @@ static partial class Program
             settings.ZoomPercent = input;
             Check(settings.ZoomPercent == expected, $"zoom {input}% snaps to {expected}%");
         }
+    }
+
+    static void CheckDueTextFormatting()
+    {
+        var now = new DateTime(2026, 1, 1, 12, 30, 0);
+        var noDue = new TaskItem { Title = "No due date" };
+        Check(noDue.FormatDueText(now) == "+ date", "tasks without due dates show the add-date prompt");
+
+        var dateOnly = new TaskItem { Title = "Date only" };
+        dateOnly.SetDue(now.Date, null);
+        Check(dateOnly.FormatDueText(now) == "2026-01-01", "tasks without a due time display only the date");
+
+        var tomorrow = now.AddHours(12);
+        var timedSoon = new TaskItem { Title = "Due tomorrow" };
+        timedSoon.SetDue(tomorrow.Date, tomorrow.TimeOfDay);
+        Check(timedSoon.FormatDueText(now) == "00:30", "timed tasks due tomorrow within 24 hours display only the time");
+
+        var justUnder24Hours = now.AddHours(24).AddTicks(-1);
+        timedSoon.SetDue(justUnder24Hours.Date, justUnder24Hours.TimeOfDay);
+        Check(timedSoon.FormatDueText(now) == "12:29", "timed tasks just under 24 hours away display only the time");
+
+        var exactly24Hours = now.AddHours(24);
+        timedSoon.SetDue(exactly24Hours.Date, exactly24Hours.TimeOfDay);
+        Check(timedSoon.FormatDueText(now) == "2026-01-02", "timed tasks exactly 24 hours away display only the date");
+
+        var beyond24Hours = now.AddHours(25);
+        timedSoon.SetDue(beyond24Hours.Date, beyond24Hours.TimeOfDay);
+        Check(timedSoon.FormatDueText(now) == "2026-01-02", "timed tasks more than 24 hours away display only the date");
+
+        var overdue = now.AddMinutes(-1);
+        timedSoon.SetDue(overdue.Date, overdue.TimeOfDay);
+        Check(timedSoon.FormatDueText(now) == "12:29", "overdue timed tasks display only the time");
+
+        var beforeRefresh = timedSoon.UpdatedAt;
+        var serializedDue = timedSoon.DueSerialized;
+        bool dueTextRaised = false;
+        timedSoon.PropertyChanged += (_, args) => dueTextRaised |= args.PropertyName == nameof(TaskItem.DueText);
+        timedSoon.RefreshOverdue();
+        Check(dueTextRaised, "due refresh raises the displayed text notification");
+        Check(timedSoon.UpdatedAt == beforeRefresh && timedSoon.DueSerialized == serializedDue,
+            "display refresh does not change task timestamps or serialized due values");
+
+        var dueSoon = DateTime.Now.AddHours(1);
+        timedSoon.SetDue(dueSoon.Date, dueSoon.TimeOfDay);
+        Check(timedSoon.DueText == dueSoon.ToString("HH:mm"), "DueText displays only the time for a timed task within 24 hours");
     }
 
     static void CheckSettingsPersistence()
@@ -445,11 +491,15 @@ static partial class Program
     {
         var template = (DataTemplate)window.FindResource("TaskTemplate");
         var root = (FrameworkElement)template.LoadContent();
+        var taskGrid = (Grid)root;
+        var dueColumn = taskGrid.ColumnDefinitions[4];
         var title = (TextBlock)root.FindName("TaskTitle")!;
         var highTrigger = title.Style.Triggers.OfType<DataTrigger>().Single(trigger =>
             trigger.Binding is Binding binding && binding.Path?.Path == nameof(TaskItem.IsHigh));
         Check(string.Equals(highTrigger.Value?.ToString(), "True", StringComparison.OrdinalIgnoreCase) && highTrigger.Setters.OfType<Setter>().Any(setter => setter.Property == TextBlock.FontWeightProperty),
             "high-priority titles have a conditional font-weight setter");
+        Check(dueColumn.Width == GridLength.Auto && dueColumn.MinWidth == 0,
+            "due column sizes to its content without a wide minimum");
     }
 
     static void PumpDispatcher(TimeSpan timeout)
