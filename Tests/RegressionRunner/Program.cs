@@ -204,6 +204,12 @@ static partial class Program
             Storage.SaveTasks(Array.Empty<TaskItem>());
             window = new MainWindow(enableGoogle: false);
 
+            var displayedVersion = Find<TextBlock>(window, "VersionText").Text;
+            var assemblyVersion = typeof(MainWindow).Assembly.GetName().Version;
+            Check(assemblyVersion is not null && displayedVersion == assemblyVersion.ToString(3) &&
+                  displayedVersion.Split('.').Length == 3 && displayedVersion.Split('.').All(part => int.TryParse(part, out _)),
+                "main header displays the three-part app assembly version");
+
             var tasks = (ObservableCollection<TaskItem>)typeof(MainWindow)
                 .GetField("_tasks", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!;
             var attach = typeof(MainWindow).GetMethod("Attach", BindingFlags.Instance | BindingFlags.NonPublic)!;

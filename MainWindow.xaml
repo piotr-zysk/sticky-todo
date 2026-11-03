@@ -481,7 +481,10 @@
 
     <DockPanel x:Name="RootDock">
         <Grid x:Name="HeaderBar" DockPanel.Dock="Top" Height="32" Background="#FFEEDD9A" MouseLeftButtonDown="TitleBar_MouseDown">
-            <TextBlock Text="To do" FontWeight="SemiBold" VerticalAlignment="Center" Margin="12,0,0,0" IsHitTestVisible="False"/>
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0" IsHitTestVisible="False">
+                <TextBlock Text="To do" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <TextBlock x:Name="VersionText" VerticalAlignment="Center" Margin="8,0,0,0" FontSize="11" Opacity="0.75"/>
+            </StackPanel>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                 <Button x:Name="SyncButton" Style="{StaticResource FlatBtn}" Content="&#x21BB;" FontSize="19" Visibility="Collapsed"
                         ToolTip="Never synced" AutomationProperties.Name="Sync with Google Drive" Click="Sync_Click"/>

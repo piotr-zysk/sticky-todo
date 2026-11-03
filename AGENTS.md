@@ -10,6 +10,11 @@ This guide applies to the whole repository. Keep it current when changing archit
 - Direct NuGet dependencies are YamlDotNet (`16.*`) and Google.Apis.Drive.v3 (`1.77.0.4301`). Check the project file before changing versions.
 - There is no solution file or separate frontend/build toolchain. Run commands from the repository root with explicit project paths.
 
+## Versioning
+
+- The app version is the three-part `<Version>` in `StickyTodo.csproj`; the main header displays the generated assembly version. Do not duplicate the version as a hard-coded UI string.
+- For every future project change, bump the version and append a corresponding entry to `versionlog.md`: increment the first component for breaking changes, the second for smaller features or improvements, and the third for bug fixes.
+
 ## Commands and verification
 
 ```powershell

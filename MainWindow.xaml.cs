@@ -34,9 +34,13 @@ public partial class MainWindow : Window
     readonly Func<IDriveTransport>? _driveTransportFactory;
     bool _syncInProgress, _closeInProgress, _allowClose;
 
+    public string AppVersion => typeof(MainWindow).Assembly.GetName().Version?.ToString(3)
+                                ?? throw new InvalidOperationException("The app assembly version is missing.");
+
     public MainWindow(bool enableGoogle = true, GoogleConnection? google = null, Func<IDriveTransport>? driveTransportFactory = null)
     {
         InitializeComponent();
+        VersionText.Text = AppVersion;
         _driveTransportFactory = driveTransportFactory;
         if (enableGoogle)
         {
