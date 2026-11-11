@@ -1,5 +1,9 @@
 # Version history
 
+## 1.7.1 — 2026-11-11
+
+- Show the date instead of the time for timed tasks due at least 24 hours ago.
+
 ## 1.7.0 — 2026-11-11
 
 - Add a root `.slnx` solution containing the app and regression runner projects.

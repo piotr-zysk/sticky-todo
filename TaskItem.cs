@@ -69,8 +69,13 @@ public class TaskItem : INotifyPropertyChanged
     public string FormatDueText(DateTime now)
     {
         if (!_date.HasValue) return "+ date";
-        if (_time.HasValue && _date.Value + _time.Value - now < TimeSpan.FromHours(24))
-            return _time.Value.ToString(@"hh\:mm");
+        if (_time.HasValue)
+        {
+            var due = _date.Value + _time.Value;
+            if (due > now - TimeSpan.FromHours(24)
+                && due - now < TimeSpan.FromHours(24))
+                return _time.Value.ToString(@"hh\:mm");
+        }
         return _date.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
     }
 
