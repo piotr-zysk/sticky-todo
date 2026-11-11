@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="StickyTodo.csproj" />
+  <Project Path="Tests/RegressionRunner/RegressionRunner.csproj" />
+</Solution>

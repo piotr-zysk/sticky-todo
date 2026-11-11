@@ -8,7 +8,7 @@ This guide applies to the whole repository. Keep it current when changing archit
 - The main window stays on top, uses custom borderless chrome with rounded corners, allows horizontal resizing, and sizes its height to the visible task count.
 - `StickyTodo.csproj` targets `net10.0-windows`, enables WPF, nullable reference types, and implicit usings, and produces a `WinExe`. Use Windows with the .NET 10 SDK and Windows Desktop support for builds and execution.
 - Direct NuGet dependencies are YamlDotNet (`16.*`) and Google.Apis.Drive.v3 (`1.77.0.4301`). Check the project file before changing versions.
-- There is no solution file or separate frontend/build toolchain. Run commands from the repository root with explicit project paths.
+- `StickyTodo.slnx` at the repository root includes the app and regression runner. There is no separate frontend/build toolchain. Run commands from the repository root.
 
 ## Versioning
 
@@ -18,8 +18,8 @@ This guide applies to the whole repository. Keep it current when changing archit
 ## Commands and verification
 
 ```powershell
-# Build (also restores NuGet packages)
-dotnet build StickyTodo.csproj
+# Build all projects (also restores NuGet packages)
+dotnet build StickyTodo.slnx
 
 # Launch the desktop app
 dotnet run --project StickyTodo.csproj

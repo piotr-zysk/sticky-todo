@@ -1,5 +1,9 @@
 # Version history
 
+## 1.7.0 — 2026-11-11
+
+- Add a root `.slnx` solution containing the app and regression runner projects.
+
 ## 1.6.0 — 2026-11-04
 
 - Make the details-window copy icon lighter and more subtle.

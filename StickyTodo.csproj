@@ -5,7 +5,7 @@
     <UseWPF>true</UseWPF>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Version>1.6.0</Version>
+    <Version>1.7.0</Version>
     <AssemblyName>StickyTodo</AssemblyName>
     <ApplicationIcon>app.ico</ApplicationIcon>
   </PropertyGroup>
