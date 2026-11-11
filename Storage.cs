@@ -12,6 +12,8 @@ namespace StickyTodo;
 public class TaskDto
 {
     [JsonRequired] public Guid Id { get; set; }
+    public Guid? ParentId { get; set; }
+    public DateTimeOffset? SubtasksDeletedAt { get; set; }
     [JsonRequired] public string Title { get; set; } = "";
     public string? Due { get; set; }
     [JsonRequired] public string Priority { get; set; } = "normal";
@@ -21,10 +23,14 @@ public class TaskDto
 
 public static class Storage
 {
-    static readonly string Dir = Path.GetDirectoryName(Environment.ProcessPath) ?? AppContext.BaseDirectory;
+    // When launched as `dotnet StickyTodo.dll`, ProcessPath names the shared host rather than the app.
+    static readonly string Dir = string.Equals(Path.GetFileNameWithoutExtension(Environment.ProcessPath), "dotnet", StringComparison.OrdinalIgnoreCase)
+        ? AppContext.BaseDirectory
+        : Path.GetDirectoryName(Environment.ProcessPath) ?? AppContext.BaseDirectory;
     public static readonly string TasksDirectory = Path.Combine(Dir, "tasks");
     public static readonly string TasksPath = Path.Combine(TasksDirectory, "tasks.yaml");
     public static readonly string ArchivePath = Path.Combine(TasksDirectory, "task-archive.yaml");
+    public static readonly string DeletionsPath = Path.Combine(TasksDirectory, "subtask-deletions.yaml");
     public static readonly string SettingsPath = Path.Combine(Dir, "settings.yaml");
 
     public static void InitializeTaskStorage(string? applicationDirectory = null)
@@ -117,6 +123,8 @@ public static class Storage
     public static TaskDto ToDto(TaskItem t, DateTime? completed = null) => new()
     {
         Id = t.Id,
+        ParentId = t.ParentId,
+        SubtasksDeletedAt = t.SubtasksDeletedAt,
         Title = t.Title,
         Due = t.DueSerialized,
         Priority = t.IsHigh ? "high" : "normal",
@@ -128,12 +136,12 @@ public static class Storage
     {
         InitializeTaskStorage();
         MigrateRecords();
-        return Read(TasksPath).Where(d => !string.IsNullOrWhiteSpace(d.Title)).Select(d =>
+        return TaskTree.Build(Read(TasksPath).Where(d => !string.IsNullOrWhiteSpace(d.Title)).Select(d =>
         {
             var task = ToTask(d);
             task.HasDetails = !string.IsNullOrWhiteSpace(LoadDetails(task.Id));
             return task;
-        }).ToList();
+        }));
     }
 
     static void MigrateRecords()
@@ -187,7 +195,7 @@ public static class Storage
 
     public static TaskItem ToTask(TaskDto d)
     {
-        var t = new TaskItem { Id = d.Id, Title = d.Title.Trim(), IsHigh = string.Equals(d.Priority, "high", StringComparison.OrdinalIgnoreCase) };
+        var t = new TaskItem { Id = d.Id, ParentId = d.ParentId, SubtasksDeletedAt = d.SubtasksDeletedAt, Title = d.Title.Trim(), IsHigh = string.Equals(d.Priority, "high", StringComparison.OrdinalIgnoreCase) };
         if (!string.IsNullOrWhiteSpace(d.Due))
         {
             var parts = d.Due.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -204,11 +212,12 @@ public static class Storage
 
     public static void SaveTasks(IEnumerable<TaskItem> tasks) => WriteTransaction(new()
     {
-        ["tasks.yaml"] = Ser.Serialize(tasks.Select(t => ToDto(t)).ToList())
+        ["tasks.yaml"] = Ser.Serialize(TaskTree.Flatten(tasks).Select(t => ToDto(t)).ToList())
     });
 
     public static void Archive(TaskItem t)
     {
+        if (t.ParentId != null) throw new InvalidOperationException("Subtasks cannot be archived.");
         var list = Read(ArchivePath);
         if (list.All(item => item.Id != t.Id)) list.Add(ToDto(t, DateTime.Now));
         Write(ArchivePath, list);
@@ -216,20 +225,48 @@ public static class Storage
 
     public static void CompleteTask(TaskItem task, IEnumerable<TaskItem> remaining)
     {
+        var removed = TaskTree.Flatten(new[] { task }).ToList();
+        var removedIds = removed.Select(t => t.Id).ToHashSet();
+        var timestamp = TaskItem.NextTimestamp(removed.Max(t => t.UpdatedAt));
         var archive = Read(ArchivePath).Where(t => t.Id != task.Id).ToList();
-        archive.Add(ToDto(task, DateTime.UtcNow));
-        WriteTransaction(new()
+        if (task.ParentId == null)
         {
-            ["tasks.yaml"] = Ser.Serialize(remaining.Select(t => ToDto(t)).ToList()),
+            var completed = ToDto(task, DateTime.UtcNow);
+            completed.UpdatedAt = timestamp;
+            completed.SubtasksDeletedAt = timestamp;
+            archive.Add(completed);
+        }
+        var deletions = ReadDeletions().Where(d => !removedIds.Contains(d.Id)).ToList();
+        deletions.AddRange(removed.Where(t => t.ParentId != null).Select(t => new TaskDeletion
+        {
+            Id = t.Id, ParentId = t.ParentId!.Value, DeletedAt = timestamp
+        }));
+        var writes = new Dictionary<string, string?>
+        {
+            ["tasks.yaml"] = Ser.Serialize(TaskTree.Flatten(remaining).Where(t => !removedIds.Contains(t.Id)).Select(t => ToDto(t)).ToList()),
             ["task-archive.yaml"] = Ser.Serialize(archive),
-            [$"{task.Id:N}.txt"] = null
-        });
+            ["subtask-deletions.yaml"] = Ser.Serialize(deletions)
+        };
+        foreach (var item in removed) writes[$"{item.Id:N}.txt"] = null;
+        WriteTransaction(writes);
+        task.UpdatedAt = timestamp;
+    }
+
+    static List<TaskDeletion> ReadDeletions()
+    {
+        if (!File.Exists(DeletionsPath)) return new();
+        try { return Deser.Deserialize<List<TaskDeletion>>(File.ReadAllText(DeletionsPath)) ?? new(); }
+        catch
+        {
+            try { File.Copy(DeletionsPath, DeletionsPath + ".bad", true); } catch { }
+            throw;
+        }
     }
 
     public static void SaveTaskDetails(TaskItem task, string text, IEnumerable<TaskItem> tasks)
     {
         var timestamp = TaskItem.NextTimestamp(task.UpdatedAt);
-        var records = tasks.Select(t => ToDto(t)).ToList();
+        var records = TaskTree.Flatten(tasks).Select(t => ToDto(t)).ToList();
         records.Single(t => t.Id == task.Id).UpdatedAt = timestamp;
         WriteTransaction(new()
         {
@@ -247,10 +284,11 @@ public static class Storage
         {
             Tasks = Read(TasksPath).Concat(Read(ArchivePath)).Select(d => new SyncTask
             {
-                Id = d.Id, Title = d.Title, Due = d.Due, Priority = d.Priority,
+                Id = d.Id, ParentId = d.ParentId, SubtasksDeletedAt = d.SubtasksDeletedAt, Title = d.Title, Due = d.Due, Priority = d.Priority,
                 CompletedAt = d.CompletedAt, UpdatedAt = d.UpdatedAt,
                 Details = d.CompletedAt.HasValue ? "" : LoadDetails(d.Id)
-            }).ToList()
+            }).ToList(),
+            Deletions = ReadDeletions()
         };
         snapshot.Validate();
         return snapshot;
@@ -262,8 +300,12 @@ public static class Storage
         var writes = new Dictionary<string, string?>
         {
             ["tasks.yaml"] = Ser.Serialize(snapshot.Tasks.Where(t => !t.CompletedAt.HasValue).Select(Metadata).ToList()),
-            ["task-archive.yaml"] = Ser.Serialize(snapshot.Tasks.Where(t => t.CompletedAt.HasValue).Select(Metadata).ToList())
+            ["task-archive.yaml"] = Ser.Serialize(snapshot.Tasks.Where(t => t.CompletedAt.HasValue).Select(Metadata).ToList()),
+            ["subtask-deletions.yaml"] = Ser.Serialize(snapshot.Deletions)
         };
+        var activeIds = snapshot.Tasks.Where(t => !t.CompletedAt.HasValue).Select(t => t.Id).ToHashSet();
+        foreach (var old in Read(TasksPath).Where(t => !activeIds.Contains(t.Id))) writes[$"{old.Id:N}.txt"] = null;
+        foreach (var deleted in snapshot.Deletions) writes[$"{deleted.Id:N}.txt"] = null;
         foreach (var task in snapshot.Tasks)
             writes[$"{task.Id:N}.txt"] = task.CompletedAt.HasValue ? null : task.Details;
         WriteTransaction(writes);
@@ -271,7 +313,7 @@ public static class Storage
 
     static TaskDto Metadata(SyncTask t) => new()
     {
-        Id = t.Id, Title = t.Title, Due = t.Due, Priority = t.Priority,
+        Id = t.Id, ParentId = t.ParentId, SubtasksDeletedAt = t.SubtasksDeletedAt, Title = t.Title, Due = t.Due, Priority = t.Priority,
         CompletedAt = t.CompletedAt, UpdatedAt = t.UpdatedAt
     };
 

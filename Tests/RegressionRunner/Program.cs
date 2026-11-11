@@ -37,6 +37,9 @@ static partial class Program
             CheckProtectedTokens();
             CheckDriveTransport();
             CheckGoogleConnectionAndClose();
+            CheckSubtaskStorage();
+            CheckSubtaskMerging();
+            CheckSubtaskWindows();
             Console.WriteLine("All regression checks passed.");
             return 0;
         }
@@ -135,7 +138,8 @@ static partial class Program
 
             var tasks = (ObservableCollection<TaskItem>)typeof(MainWindow)
                 .GetField("_tasks", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!;
-            var addNew = typeof(MainWindow).GetMethod("AddNew", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            var taskView = Find<TaskListControl>(window, "TaskView");
+            var addNew = typeof(TaskListControl).GetMethod("AddNew", BindingFlags.Instance | BindingFlags.NonPublic)!;
             var title = Find<TextBox>(window, "NewTitle");
             var date = Find<DatePicker>(window, "NewDate");
             var time = Find<TextBox>(window, "NewTime");
@@ -144,7 +148,7 @@ static partial class Program
                 title.Text = taskTitle;
                 date.SelectedDate = selectedDate;
                 time.Text = timeText;
-                addNew.Invoke(window, new object[] { top });
+                addNew.Invoke(taskView, new object[] { top });
             }
 
             var today = DateTime.Today;
@@ -184,8 +188,8 @@ static partial class Program
             {
                 RoutedEvent = Keyboard.PreviewKeyDownEvent
             };
-            typeof(MainWindow).GetMethod("AddPanel_PreviewKeyDown", BindingFlags.Instance | BindingFlags.NonPublic)!
-                .Invoke(window, new object[] { Find<Border>(window, "AddPanel"), enter });
+            typeof(TaskListControl).GetMethod("AddPanel_PreviewKeyDown", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .Invoke(taskView, new object[] { Find<Border>(window, "AddPanel"), enter });
             var bottomTimedTask = tasks.Single(task => task.Title == "Bottom Enter time");
             Check(enter.Handled && bottomTimedTask.DueDate == expectedBottomDate && bottomTimedTask.DueTime == TimeSpan.Zero &&
                   Storage.LoadTasks().Single(task => task.Title == "Bottom Enter time").DueDate == expectedBottomDate,
@@ -575,12 +579,12 @@ static partial class Program
 
     static void CheckPriorityTemplate(MainWindow window)
     {
-        var template = (DataTemplate)window.FindResource("TaskTemplate");
+        var template = (DataTemplate)Find<TaskListControl>(window, "TaskView").FindResource("TaskTemplate");
         var root = (FrameworkElement)template.LoadContent();
         var taskGrid = (Grid)root;
         var detailsButton = (Button)root.FindName("DetailsButton")!;
         var titleHost = (Grid)root.FindName("TaskTitleHost")!;
-        var dueColumn = taskGrid.ColumnDefinitions[4];
+        var dueColumn = taskGrid.ColumnDefinitions[Grid.GetColumn((Grid)root.FindName("DueHost")!)];
         var title = (TextBlock)root.FindName("TaskTitle")!;
         Check(Grid.GetColumn(detailsButton) < Grid.GetColumn(titleHost),
             "details button appears before the task title");
@@ -604,7 +608,7 @@ static partial class Program
     }
 
     static T Find<T>(FrameworkElement element, string name) where T : class =>
-        element.FindName(name) as T ?? throw new InvalidOperationException($"Could not find {name}.");
+        (element.FindName(name) ?? (element.FindName("TaskView") as FrameworkElement)?.FindName(name) ?? (element.FindName("ChildView") as FrameworkElement)?.FindName(name)) as T ?? throw new InvalidOperationException($"Could not find {name}.");
 
     static byte[]? Backup(string path) => File.Exists(path) ? File.ReadAllBytes(path) : null;
 

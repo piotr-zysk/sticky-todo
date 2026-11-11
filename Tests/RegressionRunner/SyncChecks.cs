@@ -155,7 +155,7 @@ static partial class Program
         Check(TaskMerge.Merge(Snapshot(archive), Snapshot(newerRemote)).Tasks.Single().CompletedAt.HasValue, "local completion is not resurrected by older Google task");
         Check(!TaskMerge.Merge(Snapshot(archive), Snapshot(Record(id, "Newer active", 5))).Tasks.Single().CompletedAt.HasValue, "newer active version replaces older archive");
         ExpectFailure<InvalidDataException>(() => Snapshot(newerLocal, newerLocal).Validate(), "duplicate IDs");
-        ExpectFailure<InvalidDataException>(() => new SyncSnapshot { Version = 2 }.Validate(), "unsupported version");
+        ExpectFailure<InvalidDataException>(() => new SyncSnapshot { Version = 3 }.Validate(), "unsupported version");
         ExpectFailure<JsonException>(() => JsonSerializer.Deserialize<SyncSnapshot>("{}"), "missing required snapshot fields");
         var invalid = Record(id, "Invalid");
         invalid.Due = "tomorrow";
@@ -201,7 +201,7 @@ static partial class Program
         Check(drive.Writes == 0, "failed download never uploads");
         drive = new FakeDrive(Snapshot()) { FailWrite = true };
         ExpectFailure<IOException>(() => SyncEngine.MergeAndUploadAsync(local, drive, CancellationToken.None).GetAwaiter().GetResult(), "failed upload");
-        drive = new FakeDrive(new SyncSnapshot { Version = 2 });
+        drive = new FakeDrive(new SyncSnapshot { Version = 3 });
         ExpectFailure<InvalidDataException>(() => SyncEngine.MergeAndUploadAsync(local, drive, CancellationToken.None).GetAwaiter().GetResult(), "bad remote snapshot");
         Check(drive.Writes == 0, "invalid Google data never uploads");
         using var cancellation = new CancellationTokenSource();

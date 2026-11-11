@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Windows.Threading;
@@ -8,6 +9,14 @@ namespace StickyTodo;
 public class TaskItem : INotifyPropertyChanged
 {
     public Guid Id { get; init; } = Guid.NewGuid();
+    public Guid? ParentId { get; init; }
+    public DateTimeOffset? SubtasksDeletedAt { get; set; }
+    public ObservableCollection<TaskItem> Children { get; } = new();
+    public bool HasSubtasks => Children.Count != 0;
+    bool _isBlocked;
+    public bool IsBlocked { get => _isBlocked; internal set { if (_isBlocked == value) return; _isBlocked = value; Raise(); } }
+
+    public TaskItem() => Children.CollectionChanged += (_, _) => Raise(nameof(HasSubtasks));
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
     public void Touch() => UpdatedAt = NextTimestamp(UpdatedAt);
     public static DateTimeOffset NextTimestamp(DateTimeOffset previous)
@@ -22,13 +31,26 @@ public class TaskItem : INotifyPropertyChanged
     int _drop;
 
     public DispatcherTimer? RemoveTimer;
+    internal Func<TaskItem, bool>? ConfirmCompletion { get; set; }
 
     public event PropertyChangedEventHandler? PropertyChanged;
     void Raise([CallerMemberName] string? n = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(n));
 
     public string Title { get => _title; set { if (_title == value) return; _title = value; Touch(); Raise(); } }
     public bool IsHigh { get => _high; set { if (_high == value) return; _high = value; Touch(); Raise(); } }
-    public bool IsDone { get => _done; set { if (_done == value) return; _done = value; Touch(); Raise(); Raise(nameof(IsOverdue)); } }
+    public bool IsDone
+    {
+        get => _done;
+        set
+        {
+            if (_done == value) return;
+            if (value && ConfirmCompletion?.Invoke(this) == false) { Raise(); return; }
+            _done = value;
+            Touch();
+            Raise();
+            Raise(nameof(IsOverdue));
+        }
+    }
     public bool IsEditingTitle { get => _editTitle; set { _editTitle = value; Raise(); } }
     public bool IsEditingDue { get => _editDue; set { _editDue = value; Raise(); } }
     public bool HasDetails { get => _hasDetails; set { if (_hasDetails == value) return; _hasDetails = value; Raise(); } }

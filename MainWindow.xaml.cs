@@ -2,7 +2,6 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -23,16 +22,15 @@ public partial class MainWindow : Window
     readonly Dictionary<Guid, DetailsSaveSession> _detailsSessions = new();
     AppearanceSettings _settings = new();
     readonly DispatcherTimer _overdueTimer = new() { Interval = TimeSpan.FromSeconds(30) };
-    Point _dragStart;
-    TaskItem? _dragItem;
-    TaskItem? _markedItem;
-    const double ItemHeight = 24;
     const double BaseMinWidth = 320;
     double _zoom = 1, _unzoomedWidth = double.NaN, _appliedWidth = double.NaN;
     bool _applyingZoom;
     readonly GoogleConnection? _google;
     readonly Func<IDriveTransport>? _driveTransportFactory;
     bool _syncInProgress, _closeInProgress, _allowClose;
+    internal AppearanceSettings Settings => _settings;
+    internal Func<TaskItem, int, bool>? CompletionConfirmation { get; set; }
+    IEnumerable<TaskItem> AllTasks => TaskTree.Flatten(_tasks);
 
     public string AppVersion => typeof(MainWindow).Assembly.GetName().Version?.ToString(3)
                                 ?? throw new InvalidOperationException("The app assembly version is missing.");
@@ -51,13 +49,13 @@ public partial class MainWindow : Window
         _settings = Storage.LoadSettings();
         ApplyAppearance(_settings);
         foreach (var t in Storage.LoadTasks()) Attach(t, false);
-        TaskList.ItemsSource = _tasks;
+        TaskView.Configure(this, _tasks);
         _tasks.CollectionChanged += (_, _) =>
         {
             UpdateListHeight();
             Dispatcher.BeginInvoke(UpdateListHeight, DispatcherPriority.Loaded);
         };
-        _overdueTimer.Tick += (_, _) => { foreach (var t in _tasks) t.RefreshOverdue(); };
+        _overdueTimer.Tick += (_, _) => { foreach (var t in AllTasks) t.RefreshOverdue(); };
         _overdueTimer.Start();
         Closing += OnClosing;
         UpdateListHeight();
@@ -65,10 +63,7 @@ public partial class MainWindow : Window
 
     void UpdateListHeight()
     {
-        int max = _settings.MaxItemsToDisplay;
-        TaskList.Height = ItemHeight * Math.Clamp(_tasks.Count, 1, max);
-        ScrollViewer.SetVerticalScrollBarVisibility(TaskList,
-            _tasks.Count > max ? ScrollBarVisibility.Auto : ScrollBarVisibility.Hidden);
+        TaskView.UpdateListHeight();
     }
 
     // Resizing by the user makes WPF drop SizeToContent; restore it so the height keeps following the items.
@@ -101,11 +96,63 @@ public partial class MainWindow : Window
 
     void Attach(TaskItem t, bool top)
     {
-        t.PropertyChanged += OnItemChanged;
+        Register(t);
         if (top) _tasks.Insert(0, t); else _tasks.Add(t);
     }
 
+    void Register(TaskItem task)
+    {
+        foreach (var item in TaskTree.Flatten(new[] { task }))
+        {
+            item.PropertyChanged += OnItemChanged;
+            item.ConfirmCompletion = ConfirmTaskCompletion;
+        }
+    }
+
+    internal void AddTask(TaskItem task, bool top)
+    {
+        if (task.ParentId is not { } parentId) { Attach(task, top); return; }
+        var parent = AllTasks.Single(t => t.Id == parentId);
+        if (parent.IsDone || parent.IsBlocked) throw new InvalidOperationException("This task is pending completion.");
+        Register(task);
+        if (top) parent.Children.Insert(0, task); else parent.Children.Add(task);
+    }
+
+    bool ConfirmTaskCompletion(TaskItem task)
+    {
+        if (task.IsBlocked) return false;
+        CommitAllEdits();
+        var count = TaskTree.Flatten(task.Children).Count(t => !t.IsDone);
+        return count == 0 || (CompletionConfirmation?.Invoke(task, count) ??
+            MessageBox.Show(this,
+                $"\"{task.Title}\" has {count} unfinished subtask(s), including nested subtasks. Completing it will delete all its subtasks and their text details after the undo delay.\n\nComplete this task?",
+                "Unfinished subtasks", MessageBoxButton.YesNo, MessageBoxImage.Warning,
+                MessageBoxResult.No) == MessageBoxResult.Yes);
+    }
+
+    void RefreshCompletionLocks()
+    {
+        var all = AllTasks.ToDictionary(t => t.Id);
+        foreach (var task in all.Values)
+        {
+            var parentId = task.ParentId;
+            var blocked = false;
+            while (parentId is { } id)
+            {
+                var parent = all[id];
+                blocked |= parent.IsDone;
+                parentId = parent.ParentId;
+            }
+            task.IsBlocked = blocked;
+            if (blocked) task.RemoveTimer?.Stop();
+            else if (task.IsDone && task.RemoveTimer != null && !task.RemoveTimer.IsEnabled) task.RemoveTimer.Start();
+            if (_detailsWindows.TryGetValue(task.Id, out var note)) note.SetCompletionState(blocked, task.IsDone);
+        }
+    }
+
     void Save() => Storage.SaveTasks(_tasks);
+    internal void SaveAll() => Save();
+    internal void ShowDetails(TaskItem task) => OpenDetails(task);
 
     void OnItemChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -117,7 +164,13 @@ public partial class MainWindow : Window
                 if (t.IsDone)
                 {
                     var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(_settings.ItemDeleteRetentionSeconds) };
-                    timer.Tick += (_, _) => { timer.Stop(); t.RemoveTimer = null; Complete(t); };
+                    timer.Tick += (_, _) =>
+                    {
+                        if (t.IsBlocked || _syncInProgress) return;
+                        timer.Stop();
+                        t.RemoveTimer = null;
+                        Complete(t);
+                    };
                     t.RemoveTimer = timer;
                     timer.Start();
                 }
@@ -126,6 +179,7 @@ public partial class MainWindow : Window
                     t.RemoveTimer?.Stop();
                     t.RemoveTimer = null;
                 }
+                RefreshCompletionLocks();
                 break;
             case nameof(TaskItem.Title):
             case nameof(TaskItem.IsHigh):
@@ -138,14 +192,23 @@ public partial class MainWindow : Window
 
     void Complete(TaskItem t)
     {
-        if (!_tasks.Contains(t)) return;
+        if (!AllTasks.Contains(t) || t.IsBlocked) return;
         try
         {
-            Storage.CompleteTask(t, _tasks.Where(item => item != t));
-            if (_detailsWindows.TryGetValue(t.Id, out var note)) note.DiscardAndClose();
-            _detailsSessions.Remove(t.Id);
-            _tasks.Remove(t);
-            t.PropertyChanged -= OnItemChanged;
+            var removed = TaskTree.Flatten(new[] { t }).ToList();
+            Storage.CompleteTask(t, _tasks);
+            foreach (var item in removed)
+            {
+                item.RemoveTimer?.Stop();
+                item.RemoveTimer = null;
+                if (_detailsSessions.Remove(item.Id, out var session)) session.Discard();
+                if (_detailsWindows.TryGetValue(item.Id, out var note)) note.DiscardAndClose();
+                item.PropertyChanged -= OnItemChanged;
+                item.ConfirmCompletion = null;
+            }
+            if (t.ParentId is { } parentId) AllTasks.Single(item => item.Id == parentId).Children.Remove(t);
+            else _tasks.Remove(t);
+            RefreshCompletionLocks();
         }
         catch (Exception ex)
         {
@@ -158,11 +221,11 @@ public partial class MainWindow : Window
     {
         CommitAllEdits();
         foreach (var session in _detailsSessions.Values) session.Save(force: true);
-        foreach (var t in _tasks.Where(x => x.IsDone).ToList())
+        foreach (var t in AllTasks.Where(x => x.IsDone && !x.IsBlocked).ToList())
         {
             t.RemoveTimer?.Stop();
             Complete(t);
-            if (_tasks.Contains(t)) throw new System.IO.IOException("Could not archive a completed task.");
+            if (AllTasks.Contains(t)) throw new System.IO.IOException("Could not complete a checked task.");
         }
         Save();
     }
@@ -245,7 +308,7 @@ public partial class MainWindow : Window
         if (_syncInProgress) throw new InvalidOperationException("A sync is already running.");
         _syncInProgress = true;
         RootDock.IsEnabled = false;
-        var timers = _tasks.Where(t => t.RemoveTimer?.IsEnabled == true).Select(t => t.RemoveTimer!).ToList();
+        var timers = AllTasks.Where(t => t.RemoveTimer?.IsEnabled == true).Select(t => t.RemoveTimer!).ToList();
         foreach (var timer in timers) timer.Stop();
         foreach (var note in _detailsWindows.Values) { note.IsSyncing = true; note.IsEnabled = false; }
         UpdateSyncStatus();
@@ -266,7 +329,7 @@ public partial class MainWindow : Window
         finally
         {
             foreach (var note in _detailsWindows.Values) { note.IsSyncing = false; note.IsEnabled = true; }
-            foreach (var timer in timers) timer.Start();
+            foreach (var task in AllTasks.Where(t => t.IsDone && !t.IsBlocked && t.RemoveTimer != null)) task.RemoveTimer!.Start();
             RootDock.IsEnabled = true;
             _syncInProgress = false;
             UpdateSyncStatus();
@@ -275,15 +338,16 @@ public partial class MainWindow : Window
 
     void ApplySyncedTasks(SyncSnapshot snapshot)
     {
-        foreach (var task in _tasks) task.PropertyChanged -= OnItemChanged;
+        foreach (var task in AllTasks) { task.PropertyChanged -= OnItemChanged; task.ConfirmCompletion = null; task.RemoveTimer?.Stop(); }
         _tasks.Clear();
-        foreach (var record in snapshot.Tasks.Where(t => !t.CompletedAt.HasValue))
+        var items = snapshot.Tasks.Where(t => !t.CompletedAt.HasValue).Select(record =>
         {
             var task = Storage.ToTask(record);
             task.HasDetails = !string.IsNullOrWhiteSpace(record.Details);
-            Attach(task, false);
-        }
-        var active = _tasks.ToDictionary(t => t.Id);
+            return task;
+        });
+        foreach (var root in TaskTree.Build(items)) Attach(root, false);
+        var active = AllTasks.ToDictionary(t => t.Id);
         foreach (var pair in _detailsWindows.ToList())
         {
             if (!active.ContainsKey(pair.Key))
@@ -300,13 +364,7 @@ public partial class MainWindow : Window
             pair.Value.Replace(text);
             if (_detailsWindows.TryGetValue(pair.Key, out var note)) note.RefreshTask(task, text);
         }
-    }
-
-    void Details_Click(object sender, RoutedEventArgs e)
-    {
-        e.Handled = true;
-        if (ItemOf(sender) is not { } task) return;
-        OpenDetails(task);
+        RefreshCompletionLocks();
     }
 
     void OpenDetails(TaskItem task)
@@ -314,6 +372,7 @@ public partial class MainWindow : Window
         if (_detailsWindows.TryGetValue(task.Id, out var existing))
         {
             if (existing.WindowState == WindowState.Minimized) existing.WindowState = WindowState.Normal;
+            if (task.HasSubtasks) existing.ShowSubtasks();
             existing.Activate();
             return;
         }
@@ -324,15 +383,17 @@ public partial class MainWindow : Window
             {
                 var id = task.Id;
                 session = new DetailsSaveSession(Storage.LoadDetails(id), text =>
-                    Storage.SaveTaskDetails(_tasks.Single(t => t.Id == id), text, _tasks))
+                    Storage.SaveTaskDetails(AllTasks.Single(t => t.Id == id), text, _tasks))
                 {
                     AutoSaveIntervalSeconds = _settings.DetailsAutoSaveIntervalSeconds
                 };
                 _detailsSessions.Add(task.Id, session);
             }
-            var note = new DetailsWindow(task, session) { Owner = this, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+            var note = new DetailsWindow(task, session, this) { Owner = this, WindowStartupLocation = WindowStartupLocation.CenterOwner };
             note.ApplyAppearance(Background, HeaderBar.Background, Foreground, Opacity, _zoom);
+            if (task.HasSubtasks) note.ShowSubtasks();
             _detailsWindows.Add(task.Id, note);
+            note.SetCompletionState(task.IsBlocked, task.IsDone);
             note.Closed += (_, _) => _detailsWindows.Remove(task.Id);
             note.Show();
         }
@@ -351,8 +412,6 @@ public partial class MainWindow : Window
         }
         return null;
     }
-
-    static TaskItem? ItemOf(object sender) => (sender as FrameworkElement)?.DataContext as TaskItem;
 
     void TitleBar_MouseDown(object sender, MouseButtonEventArgs e)
     {
@@ -382,6 +441,7 @@ public partial class MainWindow : Window
         Resources["TaskForeground"] = foreground;
         Resources["AppBackground"] = Background;
         Resources["HighPriorityFontWeight"] = settings.BoldHighPriority ? FontWeights.Bold : FontWeights.Normal;
+        TaskView.ApplyAppearance(Background, Foreground, settings.BoldHighPriority);
         Opacity = settings.Opacity;
         ApplyZoom(settings.ZoomPercent / 100.0);
         foreach (var note in _detailsWindows.Values)
@@ -425,311 +485,13 @@ public partial class MainWindow : Window
         ApplyAppearance(_settings);
     }
 
-    void Priority_Click(object sender, MouseButtonEventArgs e)
-    {
-        if (ItemOf(sender) is { } t) t.IsHigh = !t.IsHigh;
-    }
-
-    void Title_Click(object sender, MouseButtonEventArgs e)
-    {
-        if (ItemOf(sender) is { } t && !t.IsDone)
-        {
-            t.EditTitle = t.Title;
-            t.IsEditingTitle = true;
-        }
-    }
-
-    void TitleBox_VisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
-    {
-        if (sender is TextBox tb && tb.IsVisible)
-            Dispatcher.BeginInvoke(() => { tb.Focus(); tb.SelectAll(); }, DispatcherPriority.Input);
-    }
-
-    void TitleBox_KeyDown(object sender, KeyEventArgs e)
-    {
-        if (sender is not TextBox tb || tb.DataContext is not TaskItem t) return;
-        if (e.Key == Key.Enter) { CommitTitle(t); e.Handled = true; }
-        else if (e.Key == Key.Escape) { t.IsEditingTitle = false; e.Handled = true; }
-    }
-
-    void TitleBox_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (sender is TextBox tb && tb.DataContext is TaskItem t && t.IsEditingTitle) CommitTitle(t);
-    }
-
-    static void CommitTitle(TaskItem t)
-    {
-        if (!t.IsEditingTitle) return;
-        var text = t.EditTitle.Trim();
-        t.IsEditingTitle = false;
-        if (text.Length > 0 && text != t.Title) t.Title = text;
-    }
-
     void CommitAllEdits()
     {
-        foreach (var t in _tasks.ToList())
-        {
-            CommitTitle(t);
-            t.IsEditingDue = false;
-        }
+        TaskView.CommitAllEdits();
+        foreach (var note in _detailsWindows.Values) note.CommitTaskEdits();
     }
-
-    void Window_PreviewMouseDown(object sender, MouseButtonEventArgs e)
-    {
-        if (FindAncestor<TextBox>(e.OriginalSource as DependencyObject) != null) return;
-        foreach (var t in _tasks.ToList()) CommitTitle(t);
-    }
-
-    void Window_PreviewTextInput(object sender, TextCompositionEventArgs e)
-    {
-        if (Keyboard.FocusedElement is TextBox || FindAncestor<TextBox>(e.OriginalSource as DependencyObject) != null) return;
-        if (string.IsNullOrEmpty(e.Text) || char.IsControl(e.Text[0])) return;
-        AddPanel.Visibility = Visibility.Visible;
-        NewTitle.Focus();
-        NewTitle.Text = e.Text;
-        NewTitle.CaretIndex = NewTitle.Text.Length;
-        e.Handled = true;
-    }
-
+    void Window_PreviewMouseDown(object sender, MouseButtonEventArgs e) => TaskView.Window_PreviewMouseDown(sender, e);
+    void Window_PreviewTextInput(object sender, TextCompositionEventArgs e) => TaskView.Window_PreviewTextInput(sender, e);
     void Window_Deactivated(object? sender, EventArgs e) => CommitAllEdits();
-
-    void Due_Click(object sender, MouseButtonEventArgs e)
-    {
-        if (ItemOf(sender) is not { } t || t.IsDone) return;
-        t.EditDate = t.DueDate;
-        t.EditHour = t.DueTime?.Hours;
-        t.EditMinute = t.DueTime?.Minutes;
-        t.IsEditingDue = true;
-    }
-
-    void DuePopup_Closed(object? sender, EventArgs e)
-    {
-        if (sender is not Popup { DataContext: TaskItem t }) return;
-        t.IsEditingDue = false;
-        TimeSpan? time = t.EditHour.HasValue ? new TimeSpan(t.EditHour.Value, t.EditMinute ?? 0, 0) : null;
-        if (t.EditDate == t.DueDate && time == t.DueTime) return;
-        t.SetDue(t.EditDate, time);
-        Save();
-    }
-
-    void DueOk_Click(object sender, RoutedEventArgs e)
-    {
-        if (ItemOf(sender) is { } t) t.IsEditingDue = false;
-    }
-
-    void DueClear_Click(object sender, RoutedEventArgs e)
-    {
-        if (ItemOf(sender) is not { } t) return;
-        t.EditDate = null;
-        t.EditHour = null;
-        t.EditMinute = null;
-        t.IsEditingDue = false;
-    }
-
-    void NoTime_Click(object sender, RoutedEventArgs e)
-    {
-        if (ItemOf(sender) is not { } t) return;
-        t.EditHour = null;
-        t.EditMinute = null;
-    }
-
-    static TaskItem? TagItem(object sender) => (sender as FrameworkElement)?.Tag as TaskItem;
-
-    void Hour_Click(object sender, RoutedEventArgs e)
-    {
-        if (TagItem(sender) is not { } t || ((Button)sender).Content is not int h) return;
-        t.EditHour = h;
-        t.EditMinute ??= 0;
-        if (!t.EditDate.HasValue)
-        {
-            var now = DateTime.Now;
-            var time = new TimeSpan(h, t.EditMinute.Value, 0);
-            t.EditDate = now.Date.AddDays(time < now.TimeOfDay ? 1 : 0);
-        }
-    }
-
-    void Minute_Click(object sender, RoutedEventArgs e)
-    {
-        if (TagItem(sender) is not { } t || ((Button)sender).Content is not int m) return;
-        if (!t.EditDate.HasValue && !t.EditHour.HasValue)
-        {
-            var due = DateTime.Now.AddMinutes(m);
-            t.EditDate = due.Date;
-            t.EditHour = due.Hour;
-            t.EditMinute = due.Minute;
-            return;
-        }
-        t.EditHour ??= 9;
-        t.EditMinute = m;
-    }
-
-    void Calendar_GotMouseCapture(object sender, MouseEventArgs e)
-    {
-        if (e.OriginalSource is CalendarItem or CalendarDayButton or CalendarButton)
-            ((UIElement)e.OriginalSource).ReleaseMouseCapture();
-    }
-
-    void AddToggle_Click(object sender, RoutedEventArgs e)
-    {
-        if (AddPanel.Visibility == Visibility.Visible) { CloseAddPanel(); return; }
-        AddPanel.Visibility = Visibility.Visible;
-        NewTitle.Focus();
-    }
-
-    void CloseAddPanel()
-    {
-        AddPanel.Visibility = Visibility.Collapsed;
-        NewTitle.Text = "";
-        NewDate.SelectedDate = null;
-        NewTime.Text = "";
-        NewHigh.IsChecked = false;
-        AddError.Visibility = Visibility.Collapsed;
-    }
-
-    void AddCancel_Click(object sender, RoutedEventArgs e) => CloseAddPanel();
-
-    void NewTitle_TextChanged(object sender, TextChangedEventArgs e)
-    {
-        var ok = !string.IsNullOrWhiteSpace(NewTitle.Text);
-        AddTopBtn.IsEnabled = ok;
-        AddBottomBtn.IsEnabled = ok;
-    }
-
-    void AddPanel_PreviewKeyDown(object sender, KeyEventArgs e)
-    {
-        if (e.Key == Key.Enter && AddBottomBtn.IsEnabled) { AddNew(false); e.Handled = true; }
-        else if (e.Key == Key.Escape) { CloseAddPanel(); e.Handled = true; }
-    }
-
-    void AddTop_Click(object sender, RoutedEventArgs e) => AddNew(true);
-    void AddBottom_Click(object sender, RoutedEventArgs e) => AddNew(false);
-
-    void NewTime_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (TaskItem.TryParseTime(NewTime.Text, out var time))
-            NewTime.Text = time.ToString(@"hh\:mm");
-    }
-
-    void AddNew(bool top)
-    {
-        var title = NewTitle.Text.Trim();
-        if (title.Length == 0) return;
-        var date = NewDate.SelectedDate;
-        if (top && !date.HasValue) date = DateTime.Today;
-        TimeSpan? time = null;
-        if (!string.IsNullOrWhiteSpace(NewTime.Text))
-        {
-            if (!TaskItem.TryParseTime(NewTime.Text, out var ts))
-            {
-                AddError.Text = "Enter a valid time, such as 19:00, 1900, 715, or 7.";
-                AddError.Visibility = Visibility.Visible;
-                return;
-            }
-            time = ts;
-            if (!date.HasValue)
-            {
-                var now = DateTime.Now;
-                date = now.Date.AddDays(ts < now.TimeOfDay ? 1 : 0);
-            }
-        }
-        var t = new TaskItem { Title = title, IsHigh = NewHigh.IsChecked == true };
-        t.SetDue(date, time);
-        Attach(t, top);
-        Save();
-        CloseAddPanel();
-        TaskList.ScrollIntoView(t);
-    }
-
-    void List_PreviewMouseDown(object sender, MouseButtonEventArgs e)
-    {
-        _dragItem = null;
-        var src = e.OriginalSource as DependencyObject;
-        if (FindAncestor<TextBox>(src) != null || FindAncestor<Button>(src) != null || FindAncestor<CheckBox>(src) != null || FindAncestor<ScrollBar>(src) != null) return;
-        var lbi = FindAncestor<ListBoxItem>(src);
-        if (lbi?.DataContext is TaskItem t && !t.IsDone)
-        {
-            _dragItem = t;
-            _dragStart = e.GetPosition(null);
-        }
-    }
-
-    void List_PreviewMouseMove(object sender, MouseEventArgs e)
-    {
-        if (_dragItem == null || e.LeftButton != MouseButtonState.Pressed) return;
-        var p = e.GetPosition(null);
-        if (Math.Abs(p.X - _dragStart.X) < SystemParameters.MinimumHorizontalDragDistance &&
-            Math.Abs(p.Y - _dragStart.Y) < SystemParameters.MinimumVerticalDragDistance) return;
-        var item = _dragItem;
-        _dragItem = null;
-        DragDrop.DoDragDrop(TaskList, new DataObject(typeof(TaskItem), item), DragDropEffects.Move);
-        ClearMarker();
-    }
-
-    void ClearMarker()
-    {
-        if (_markedItem != null) { _markedItem.DropMarker = 0; _markedItem = null; }
-    }
-
-    (TaskItem? target, bool below) Locate(DragEventArgs e)
-    {
-        var hit = e.OriginalSource as DependencyObject;
-        var lbi = FindAncestor<ListBoxItem>(hit);
-        if (lbi?.DataContext is not TaskItem t) return (null, false);
-        var y = e.GetPosition(lbi).Y;
-        return (t, y > lbi.ActualHeight / 2);
-    }
-
-    void List_DragOver(object sender, DragEventArgs e)
-    {
-        if (!e.Data.GetDataPresent(typeof(TaskItem))) { e.Effects = DragDropEffects.None; e.Handled = true; return; }
-        e.Effects = DragDropEffects.Move;
-        var (target, below) = Locate(e);
-        ClearMarker();
-        if (target != null)
-        {
-            target.DropMarker = below ? 1 : -1;
-            _markedItem = target;
-        }
-        var sv = FindScrollViewer(TaskList);
-        if (sv != null)
-        {
-            var y = e.GetPosition(TaskList).Y;
-            if (y < 20) sv.ScrollToVerticalOffset(sv.VerticalOffset - 8);
-            else if (y > TaskList.ActualHeight - 20) sv.ScrollToVerticalOffset(sv.VerticalOffset + 8);
-        }
-        e.Handled = true;
-    }
-
-    void List_DragLeave(object sender, DragEventArgs e) => ClearMarker();
-
-    void List_Drop(object sender, DragEventArgs e)
-    {
-        ClearMarker();
-        if (e.Data.GetData(typeof(TaskItem)) is not TaskItem dragged) return;
-        var (target, below) = Locate(e);
-        int oldIdx = _tasks.IndexOf(dragged);
-        int newIdx;
-        if (target == null) newIdx = _tasks.Count - 1;
-        else
-        {
-            if (target == dragged) return;
-            newIdx = _tasks.IndexOf(target) + (below ? 1 : 0);
-            if (oldIdx < newIdx) newIdx--;
-        }
-        if (oldIdx < 0 || newIdx == oldIdx) return;
-        _tasks.Move(oldIdx, newIdx);
-        Save();
-        e.Handled = true;
-    }
-
-    static ScrollViewer? FindScrollViewer(DependencyObject d)
-    {
-        if (d is ScrollViewer sv) return sv;
-        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(d); i++)
-        {
-            var r = FindScrollViewer(VisualTreeHelper.GetChild(d, i));
-            if (r != null) return r;
-        }
-        return null;
-    }
+    void AddToggle_Click(object sender, RoutedEventArgs e) => TaskView.ToggleAddPanel();
 }

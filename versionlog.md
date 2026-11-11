@@ -1,5 +1,26 @@
 # Version history
 
+## 2.3.0 — 2026-11-11
+
+- Place Copy before the list switch in the text-details header.
+- Show a plus on the text/list switch icon when its target is empty, updating live for child-list changes and unsaved or whitespace-only text.
+
+## 2.2.0 — 2026-11-11
+
+- Open nonempty subtask lists directly from their row icon, including switching an already-open text window to its subtask view. Tasks without subtasks still open text details.
+
+## 2.1.0 — 2026-11-11
+
+- Show only the list icon in the details button for tasks with subtasks, replacing the text bubble or plus and removing the separate list indicator.
+
+## 2.0.0 — 2026-11-11
+
+- Add recursive subtask lists with the main list's editing, ordering, dates, priority, and completion behavior; switch between text and subtasks in the details header.
+- Warn before completing tasks with unfinished descendants, with editing locked during the undo delay. Archive main-list tasks only and delete completed subtasks and descendant text.
+- Treat empty subtask lists as absent and show a separate indicator for nonempty lists.
+- Upgrade Google sync to schema 2 with per-task merging, content-free deletion markers, and ancestor restoration for newer descendant edits. All syncing computers must upgrade; schema 1 remains readable.
+- Keep DLL-hosted development and regression data beside the managed application rather than beside the shared .NET host.
+
 ## 1.7.1 — 2026-11-11
 
 - Show the date instead of the time for timed tasks due at least 24 hours ago.

@@ -138,7 +138,7 @@ static partial class Program
             main.Show();
             var tasks = (ObservableCollection<TaskItem>)typeof(MainWindow).GetField("_tasks", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(main)!;
             var task = tasks[0];
-            var root = (FrameworkElement)((DataTemplate)main.FindResource("TaskTemplate")).LoadContent();
+            var root = (FrameworkElement)((DataTemplate)Find<TaskListControl>(main, "TaskView").FindResource("TaskTemplate")).LoadContent();
             root.DataContext = task;
             void CheckIcon(bool hasDetails)
             {

@@ -18,19 +18,56 @@
     </Window.Template>
     <DockPanel x:Name="RootPanel" Margin="5">
         <Grid x:Name="HeaderBar" DockPanel.Dock="Top" Height="30" MouseLeftButtonDown="Header_MouseLeftButtonDown">
-            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="30"/><ColumnDefinition Width="30"/></Grid.ColumnDefinitions>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
             <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="7,0" FontWeight="SemiBold"/>
-            <Button x:Name="CopyButton" Grid.Column="1" Background="Transparent" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}"
+            <Button x:Name="AddChildButton" Grid.Column="1" Width="30" Content="+" Visibility="Collapsed" Background="Transparent"
+                    Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}" BorderThickness="0" Cursor="Hand"
+                    ToolTip="Add subtask" AutomationProperties.Name="Add subtask" Click="AddChild_Click"/>
+            <Button x:Name="CopyButton" Grid.Column="2" Width="30" Background="Transparent" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}"
                     BorderThickness="0" Cursor="Hand" ToolTip="Copy title and details" AutomationProperties.Name="Copy task title and details" Click="Copy_Click">
                 <Path Width="14" Height="14" Stretch="Uniform" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}" StrokeThickness="1" Opacity="0.7"
                       Data="M 5,1 L 13,1 13,11 5,11 Z M 3,3 L 1,3 1,13 10,13 10,11"/>
             </Button>
-            <Button Grid.Column="2" Content="&#x2715;" Background="Transparent" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}"
+            <Button x:Name="ViewButton" Grid.Column="3" Width="30" Background="Transparent" BorderThickness="0" Cursor="Hand"
+                    ToolTip="Show subtasks" AutomationProperties.Name="Show subtasks" Click="View_Click">
+                <Grid Width="14" Height="14">
+                    <Path x:Name="ViewIcon" Stretch="Uniform" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}"
+                          StrokeThickness="1" Opacity="0.7">
+                        <Path.Style>
+                            <Style TargetType="Path">
+                                <Setter Property="Data" Value="M 0,1 L 2,1 2,3 0,3 Z M 5,2 L 14,2 M 0,6 L 2,6 2,8 0,8 Z M 5,7 L 8,7 M 0,11 L 2,11 2,13 0,13 Z M 10,11 L 16,11 M 13,8 L 13,14"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding HasSubtasks}" Value="True">
+                                        <Setter Property="Data" Value="M 0,1 L 2,1 2,3 0,3 Z M 5,2 L 14,2 M 0,6 L 2,6 2,8 0,8 Z M 5,7 L 14,7 M 0,11 L 2,11 2,13 0,13 Z M 5,12 L 14,12"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Path.Style>
+                    </Path>
+                    <Path x:Name="TextViewIcon" Visibility="Collapsed" Stretch="Uniform"
+                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}" StrokeThickness="1" Opacity="0.7">
+                        <Path.Style>
+                            <Style TargetType="Path">
+                                <Setter Property="Data" Value="M 2,0 L 12,0 12,7 M 7,14 L 2,14 2,0 M 9,11 L 15,11 M 12,8 L 12,14"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding HasDetails}" Value="True">
+                                        <Setter Property="Data" Value="M 2,0 L 12,0 12,14 2,14 Z M 4,4 L 10,4 M 4,7 L 10,7 M 4,10 L 9,10"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Path.Style>
+                    </Path>
+                </Grid>
+            </Button>
+            <Button Grid.Column="4" Width="30" Content="&#x2715;" Background="Transparent" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}"
                     BorderThickness="0" Cursor="Hand" ToolTip="Close details" AutomationProperties.Name="Close details" Click="Close_Click"/>
         </Grid>
-        <TextBox x:Name="Editor" AcceptsReturn="True" AcceptsTab="True" TextWrapping="Wrap"
+        <Grid>
+            <local:TaskListControl x:Name="ChildView" Visibility="Collapsed"/>
+            <TextBox x:Name="Editor" AcceptsReturn="True" AcceptsTab="True" TextWrapping="Wrap"
                  VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                  Background="Transparent" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}"
-                 BorderThickness="0" Padding="7" VerticalContentAlignment="Top"/>
+                     BorderThickness="0" Padding="7" VerticalContentAlignment="Top"/>
+        </Grid>
     </DockPanel>
 </Window>
