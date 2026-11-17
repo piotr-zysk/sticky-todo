@@ -1,5 +1,9 @@
 # Version history
 
+## 2.7.0 — 2026-11-17
+
+- Open details windows at the main window's current width in both text and subtask views, while retaining independent resizing.
+
 ## 2.6.0 — 2026-11-17
 
 - Open details windows below the main window (above when there is no room) and keep them from overlapping the main window and each other.

@@ -184,10 +184,12 @@ static partial class Program
             Storage.SaveSettings(new AppearanceSettings { DetailsAutoSaveIntervalSeconds = 0, ItemDeleteRetentionSeconds = 30 });
             Storage.SaveTasks(new[] { new TaskItem { Title = "Parent", UpdatedAt = Baseline } });
             main = new MainWindow(enableGoogle: false);
+            main.Width = 560;
             main.Show();
             var root = MainTasks(main).Single();
             Invoke<object?>(main, "OpenDetails", root);
             var note = Notes(main)[root.Id];
+            Check(Math.Abs(note.ActualWidth - main.ActualWidth) < 1, "text details opens at the main window width");
             var listSwitchIcon = Find<System.Windows.Shapes.Path>(note, "ViewIcon");
             var emptyListGeometry = listSwitchIcon.Data.ToString();
             Check(Grid.GetColumn(Find<Button>(note, "CopyButton")) < Grid.GetColumn(Find<Button>(note, "ViewButton")),
@@ -199,6 +201,7 @@ static partial class Program
             var height = note.Height;
             Find<Button>(note, "ViewButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             PumpDispatcher(TimeSpan.FromMilliseconds(20));
+            Check(Math.Abs(note.ActualWidth - width) < 1, "the first switch to subtasks preserves the opening width");
             Check(note.IsListView && !root.HasSubtasks && root.UpdatedAt == Baseline &&
                   File.ReadAllText(Storage.TasksPath) == originalYaml && !File.Exists(Storage.DetailsPath(root.Id)),
                   "opening an empty child list creates no list, text write or timestamp change");
@@ -265,8 +268,11 @@ static partial class Program
                   !File.Exists(Storage.DetailsPath(root.Id)),
                   "clicking the list icon switches an existing text window to subtasks without saving or losing pending text");
             note.Close();
+            main.Width = 520;
+            PumpDispatcher(TimeSpan.FromMilliseconds(20));
             parentButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             note = Notes(main)[root.Id];
+            Check(Math.Abs(note.ActualWidth - main.ActualWidth) < 1, "subtask details opens at the main window's latest width");
             listSwitchIcon = Find<System.Windows.Shapes.Path>(note, "ViewIcon");
             editor = Find<TextBox>(note, "Editor");
             view = Find<TaskListControl>(note, "ChildView");

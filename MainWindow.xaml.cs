@@ -393,6 +393,7 @@ public partial class MainWindow : Window
             }
             var note = new DetailsWindow(task, session, this) { Owner = this, WindowStartupLocation = WindowStartupLocation.Manual };
             note.ApplyAppearance(Background, HeaderBar.Background, Foreground, Opacity, _zoom);
+            note.Width = ActualWidth > 0 ? ActualWidth : Width;
             if (task.HasSubtasks) note.ShowSubtasks();
             _detailsWindows.Add(task.Id, note);
             note.SetCompletionState(task.IsBlocked, task.IsDone);

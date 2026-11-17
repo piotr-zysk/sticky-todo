@@ -20,7 +20,7 @@ public partial class DetailsWindow : Window
     public bool IsDocked { get; private set; } = true;
     public Action? PlacementRequested { get; set; }
     public bool IsListView { get; private set; }
-    double _textWidth = 400, _textHeight = 300, _listWidth = 400;
+    double _textWidth = 400, _textHeight = 300, _listWidth = double.NaN;
 
     public DetailsWindow(TaskItem task, DetailsSaveSession session) : this(task, session, null) { }
 
@@ -107,7 +107,12 @@ public partial class DetailsWindow : Window
             CommitTaskEdits();
             _listWidth = Width;
         }
-        else { _textWidth = Width; _textHeight = Height; }
+        else
+        {
+            _textWidth = Width;
+            _textHeight = Height;
+            if (double.IsNaN(_listWidth)) _listWidth = Width;
+        }
         IsListView = !IsListView;
         SizeToContent = SizeToContent.Manual;
         Editor.Visibility = IsListView ? Visibility.Collapsed : Visibility.Visible;
