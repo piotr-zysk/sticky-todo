@@ -5,9 +5,6 @@ namespace StickyTodo;
 
 public class AppearanceSettings
 {
-    public static readonly IReadOnlyList<int> ZoomLevels =
-        [50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150];
-
     int _itemDeleteRetentionSeconds = 5;
     int _maxItemsToDisplay = 10;
     int _detailsAutoSaveIntervalSeconds = 60;
@@ -31,11 +28,10 @@ public class AppearanceSettings
         get => _detailsAutoSaveIntervalSeconds;
         set => _detailsAutoSaveIntervalSeconds = Math.Clamp(value, 0, 3600);
     }
-    // Snaps to the nearest supported level so hand-edited YAML stays within the offered choices.
     public int ZoomPercent
     {
         get => _zoomPercent;
-        set => _zoomPercent = ZoomLevels.MinBy(level => Math.Abs(level - value));
+        set => _zoomPercent = Math.Clamp(value, 50, 150);
     }
 }
 

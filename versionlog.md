@@ -1,5 +1,10 @@
 # Version history
 
+## 2.4.0 — 2026-11-17
+
+- Replace the zoom select box in Settings with a 50–150% slider styled like the opacity slider.
+- Allow any whole zoom percentage from 50 to 150 and keep the Settings window at 100% regardless of zoom.
+
 ## 2.3.0 — 2026-11-11
 
 - Place Copy before the list switch in the text-details header.

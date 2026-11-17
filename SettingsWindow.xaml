@@ -105,7 +105,10 @@
                 <Slider x:Name="OpacitySlider" Minimum="20" Maximum="100" Value="100" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="Opacity_Changed" AutomationProperties.Name="Application opacity"/>
             </DockPanel>
             <TextBlock Text="Zoom" FontSize="16" FontWeight="SemiBold" Margin="0,20,0,8"/>
-            <ComboBox x:Name="ZoomLevel" Width="100" HorizontalAlignment="Left" SelectionChanged="Zoom_Changed" AutomationProperties.Name="Zoom"/>
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Right" Width="44" TextAlignment="Right" Text="{Binding ElementName=ZoomSlider, Path=Value, StringFormat={}{0:0}%}"/>
+                <Slider x:Name="ZoomSlider" Minimum="50" Maximum="150" Value="100" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="Zoom_Changed" AutomationProperties.Name="Zoom"/>
+            </DockPanel>
             <CheckBox x:Name="BoldHighPriority" Content="Bold high-priority items" Checked="BoldHighPriority_Changed" Unchecked="BoldHighPriority_Changed" Margin="0,16,0,0"/>
             <TextBlock Text="Changes are previewed on your sticky note." Margin="0,10,0,0" Foreground="#FF706A58"/>
         </StackPanel>
