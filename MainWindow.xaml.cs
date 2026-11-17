@@ -27,7 +27,7 @@ public partial class MainWindow : Window
     bool _applyingZoom;
     readonly GoogleConnection? _google;
     readonly Func<IDriveTransport>? _driveTransportFactory;
-    bool _syncInProgress, _closeInProgress, _allowClose;
+    bool _syncInProgress, _closeInProgress, _allowClose, _placingDetails, _detailsPlacementPending;
     internal AppearanceSettings Settings => _settings;
     internal Func<TaskItem, int, bool>? CompletionConfirmation { get; set; }
     IEnumerable<TaskItem> AllTasks => TaskTree.Flatten(_tasks);
@@ -58,6 +58,7 @@ public partial class MainWindow : Window
         _overdueTimer.Tick += (_, _) => { foreach (var t in AllTasks) t.RefreshOverdue(); };
         _overdueTimer.Start();
         Closing += OnClosing;
+        LocationChanged += (_, _) => ScheduleDetailsPlacement();
         UpdateListHeight();
     }
 
@@ -73,6 +74,7 @@ public partial class MainWindow : Window
         if (e.WidthChanged && !_applyingZoom && !(Math.Abs(e.NewSize.Width - _appliedWidth) < 1)) _unzoomedWidth = e.NewSize.Width / _zoom;
         if (SizeToContent != SizeToContent.Height)
             Dispatcher.BeginInvoke(() => SizeToContent = SizeToContent.Height, DispatcherPriority.Loaded);
+        ScheduleDetailsPlacement();
     }
 
     protected override void OnSourceInitialized(EventArgs e)
@@ -389,12 +391,15 @@ public partial class MainWindow : Window
                 };
                 _detailsSessions.Add(task.Id, session);
             }
-            var note = new DetailsWindow(task, session, this) { Owner = this, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+            var note = new DetailsWindow(task, session, this) { Owner = this, WindowStartupLocation = WindowStartupLocation.Manual };
             note.ApplyAppearance(Background, HeaderBar.Background, Foreground, Opacity, _zoom);
             if (task.HasSubtasks) note.ShowSubtasks();
             _detailsWindows.Add(task.Id, note);
             note.SetCompletionState(task.IsBlocked, task.IsDone);
             note.Closed += (_, _) => _detailsWindows.Remove(task.Id);
+            note.PlacementRequested = ReplaceDockedDetails;
+            note.Loaded += (_, _) => Dispatcher.BeginInvoke(ReplaceDockedDetails, DispatcherPriority.Loaded);
+            PlaceDetails(note);
             note.Show();
         }
         catch (Exception ex)
@@ -402,6 +407,58 @@ public partial class MainWindow : Window
             MessageBox.Show(this, $"Could not open task details.\n\n{ex.Message}", "Details unavailable", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
+
+    void ScheduleDetailsPlacement()
+    {
+        if (_detailsPlacementPending) return;
+        _detailsPlacementPending = true;
+        Dispatcher.BeginInvoke(() =>
+        {
+            _detailsPlacementPending = false;
+            ReplaceDockedDetails();
+        }, DispatcherPriority.Background);
+    }
+
+    void PlaceDetails(DetailsWindow note)
+    {
+        var occupied = _detailsWindows.Values.Where(w => w != note && w.IsDocked).Select(WindowRect).ToList();
+        note.MoveTo(WindowPlacement.Place(WindowRect(this), DetailsSize(note), WindowPlacement.WorkArea(this), occupied));
+    }
+
+    void ReplaceDockedDetails()
+    {
+        if (_placingDetails) return;
+        _placingDetails = true;
+        try
+        {
+            var anchor = WindowRect(this);
+            var workArea = WindowPlacement.WorkArea(this);
+            var occupied = new List<Rect>();
+            foreach (var note in _detailsWindows.Values)
+            {
+                if (!note.IsDocked) continue;
+                var size = DetailsSize(note);
+                var point = WindowPlacement.Place(anchor, size, workArea, occupied);
+                note.MoveTo(point);
+                occupied.Add(new Rect(point, size));
+            }
+        }
+        finally { _placingDetails = false; }
+    }
+
+    Size DetailsSize(DetailsWindow note)
+    {
+        if (note.ActualWidth > 0 && note.ActualHeight > 0) return new Size(note.ActualWidth, note.ActualHeight);
+        if (note.SizeToContent == SizeToContent.Height)
+        {
+            var area = WindowPlacement.WorkArea(this);
+            note.Measure(new Size(area.Width, area.Height));
+            return new Size(note.DesiredSize.Width, note.DesiredSize.Height);
+        }
+        return new Size(note.Width, note.Height);
+    }
+
+    static Rect WindowRect(Window window) => new(window.Left, window.Top, window.ActualWidth, window.ActualHeight);
 
     static T? FindAncestor<T>(DependencyObject? d) where T : DependencyObject
     {
