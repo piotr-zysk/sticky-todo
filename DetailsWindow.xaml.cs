@@ -17,8 +17,6 @@ public partial class DetailsWindow : Window
     double _zoom = 1;
     const double BaseMinWidth = 240, BaseMinHeight = 180;
     public bool IsSyncing { get; set; }
-    public bool IsDocked { get; private set; } = true;
-    public Action? PlacementRequested { get; set; }
     public bool IsListView { get; private set; }
     double _textWidth = 400, _textHeight = 300, _listWidth = 400;
 
@@ -62,7 +60,6 @@ public partial class DetailsWindow : Window
         {
             if (IsListView && SizeToContent != SizeToContent.Height)
                 Dispatcher.BeginInvoke(() => { if (IsListView) SizeToContent = SizeToContent.Height; });
-            if (IsDocked) PlacementRequested?.Invoke();
         };
     }
 
@@ -76,12 +73,6 @@ public partial class DetailsWindow : Window
             handled = true;
             return (IntPtr)(x < 5 ? 10 : x > ActualWidth - 5 ? 11 : 1);
         });
-    }
-
-    public void MoveTo(Point point)
-    {
-        Left = point.X;
-        Top = point.Y;
     }
 
     public void CommitTaskEdits() => ChildView.CommitAllEdits();
@@ -221,11 +212,7 @@ public partial class DetailsWindow : Window
         if (e.OriginalSource is DependencyObject source)
             for (var element = source; element != null; element = VisualTreeHelper.GetParent(element))
                 if (element is System.Windows.Controls.Button) return;
-        if (e.LeftButton == MouseButtonState.Pressed)
-        {
-            IsDocked = false;
-            DragMove();
-        }
+        if (e.LeftButton == MouseButtonState.Pressed) DragMove();
     }
 
     void Close_Click(object sender, RoutedEventArgs e) { e.Handled = true; Close(); }

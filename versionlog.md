@@ -1,9 +1,5 @@
 # Version history
 
-## 2.6.0 — 2026-11-17
-
-- Open details windows below the main window (above when there is no room) and keep them from overlapping the main window and each other.
-
 ## 2.5.1 — 2026-11-17
 
 - Fix recent color boxes: clicks reliably apply the color, no size change or text border on click, and the 4 remembered colors now span the full row width.

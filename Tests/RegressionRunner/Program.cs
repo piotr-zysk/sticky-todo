@@ -30,7 +30,6 @@ static partial class Program
             CheckDetailsFileFailures();
             CheckTaskStorageMigration();
             CheckDetailsWindows();
-            CheckDetailsPlacement();
             CheckSyncTimestampsAndStorage();
             CheckTaskMerging();
             CheckSyncEngine();
