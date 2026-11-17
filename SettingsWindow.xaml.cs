@@ -19,6 +19,7 @@ public partial class SettingsWindow : Window
         Settings = new()
         {
             BackgroundColor = settings.BackgroundColor,
+            RecentColors = ColorHelper.Sanitize(settings.RecentColors),
             Opacity = settings.Opacity,
             ItemDeleteRetentionSeconds = settings.ItemDeleteRetentionSeconds,
             MaxItemsToDisplay = settings.MaxItemsToDisplay,
@@ -92,6 +93,7 @@ public partial class SettingsWindow : Window
         BlueSlider.Value = color.B;
         HexColor.Text = Settings.BackgroundColor;
         ColorPreview.Background = new SolidColorBrush(color);
+        RefreshRecentColors();
         OpacitySlider.Value = Settings.Opacity * 100;
         DeleteRetentionSeconds.Text = Settings.ItemDeleteRetentionSeconds.ToString(CultureInfo.InvariantCulture);
         MaxItemsToDisplay.Text = Settings.MaxItemsToDisplay.ToString(CultureInfo.InvariantCulture);
@@ -201,9 +203,66 @@ public partial class SettingsWindow : Window
         _preview(Settings);
     }
 
+    static readonly ControlTemplate BareTextBoxTemplate = (ControlTemplate)System.Windows.Markup.XamlReader.Parse(
+        "<ControlTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation' xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml' TargetType='TextBox'>" +
+        "<ScrollViewer x:Name='PART_ContentHost' Focusable='False' HorizontalScrollBarVisibility='Hidden' VerticalScrollBarVisibility='Hidden'/>" +
+        "</ControlTemplate>");
+
+    void RefreshRecentColors()
+    {
+        RecentColorsPanel.Children.Clear();
+        RecentColorsPanel.ColumnDefinitions.Clear();
+        for (int i = 0; i < ColorHelper.MaxRecent * 2 - 1; i++)
+            RecentColorsPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = i % 2 == 0 ? new GridLength(1, GridUnitType.Star) : new GridLength(6) });
+        int index = 0;
+        RecentColorsPanel.Visibility = Settings.RecentColors.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        foreach (var hex in Settings.RecentColors)
+        {
+            var color = (Color)ColorConverter.ConvertFromString(hex);
+            var text = new TextBox
+            {
+                Text = hex,
+                IsReadOnly = true,
+                Template = BareTextBoxTemplate,
+                FocusVisualStyle = null,
+                BorderThickness = new Thickness(0),
+                Background = Brushes.Transparent,
+                Foreground = new SolidColorBrush(ColorHelper.ForegroundFor(color)),
+                Padding = new Thickness(0),
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            System.Windows.Automation.AutomationProperties.SetName(text, "Recent color " + hex);
+            var box = new Border
+            {
+                Background = new SolidColorBrush(color),
+                BorderBrush = Brushes.Gray,
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(4, 5, 4, 5),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Tag = hex,
+                Child = text
+            };
+            box.PreviewMouseLeftButtonUp += RecentColor_Click;
+            Grid.SetColumn(box, index++ * 2);
+            RecentColorsPanel.Children.Add(box);
+        }
+    }
+
+    void RecentColor_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (sender is not Border { Tag: string hex, Child: TextBox text } || text.SelectionLength > 0) return;
+        Settings.BackgroundColor = hex;
+        SetColorControls();
+        UpdateValidation();
+        _preview(Settings);
+    }
+
     void Reset_Click(object sender, RoutedEventArgs e)
     {
-        Settings = new();
+        Settings = new() { RecentColors = Settings.RecentColors };
         SetControls();
         _preview(Settings);
     }
@@ -211,6 +270,7 @@ public partial class SettingsWindow : Window
     void Save_Click(object sender, RoutedEventArgs e)
     {
         if (!SaveButton.IsEnabled) return;
+        Settings.RecentColors = ColorHelper.Remember(Settings.RecentColors, Settings.BackgroundColor);
         try { Storage.SaveSettings(Settings); }
         catch (Exception ex)
         {

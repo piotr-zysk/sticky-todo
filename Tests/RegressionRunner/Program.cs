@@ -327,6 +327,23 @@ static partial class Program
         Check(original.ItemDeleteRetentionSeconds == 8 && original.MaxItemsToDisplay == 20 && original.DetailsAutoSaveIntervalSeconds == 120 &&
               original.ZoomPercent == 150, "dialog edits do not mutate the original settings");
         dialog.Close();
+
+        var recent = new List<string>();
+        foreach (var c in new[] { "#111111", "#222222", "#333333", "#444444", "#555555", "#666666", "#333333" })
+            recent = ColorHelper.Remember(recent, c);
+        Check(string.Join(",", recent) == "#333333,#666666,#555555,#444444", "recent colors keep 4 unique, most recent first");
+
+        var recentDialog = new SettingsWindow(new AppearanceSettings { BackgroundColor = "#102030", RecentColors = new() { "#FFFFFF", "#000000" } }, _ => { });
+        var recentPanel = Find<Grid>(recentDialog, "RecentColorsPanel");
+        var boxes = recentPanel.Children.OfType<Border>().ToList();
+        var firstText = (TextBox)boxes[0].Child;
+        var secondText = (TextBox)boxes[1].Child;
+        Check(boxes.Count == 2 && firstText.Text == "#FFFFFF" && ((System.Windows.Media.SolidColorBrush)boxes[0].Background).Color == System.Windows.Media.Colors.White &&
+              ((System.Windows.Media.SolidColorBrush)secondText.Foreground).Color == System.Windows.Media.Colors.White, "recent color boxes show text, background and contrasting foreground");
+        boxes[1].RaiseEvent(new System.Windows.Input.MouseButtonEventArgs(System.Windows.Input.Mouse.PrimaryDevice, 0, System.Windows.Input.MouseButton.Left)
+            { RoutedEvent = UIElement.PreviewMouseLeftButtonUpEvent });
+        Check(recentDialog.Settings.BackgroundColor == "#000000", "clicking a recent color box applies it");
+        recentDialog.Close();
     }
 
     static void CheckTaskRenderingAndTimers()

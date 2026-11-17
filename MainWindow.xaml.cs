@@ -435,8 +435,7 @@ public partial class MainWindow : Window
         Background = new SolidColorBrush(color);
         HeaderBar.Background = new SolidColorBrush(Color.FromRgb(
             (byte)(color.R * 0.95), (byte)(color.G * 0.95), (byte)(color.B * 0.95)));
-        var foreground = new SolidColorBrush(
-            color.R * 0.299 + color.G * 0.587 + color.B * 0.114 < 140 ? Colors.White : Color.FromRgb(53, 50, 37));
+        var foreground = new SolidColorBrush(ColorHelper.ForegroundFor(color));
         Foreground = foreground;
         Resources["TaskForeground"] = foreground;
         Resources["AppBackground"] = Background;

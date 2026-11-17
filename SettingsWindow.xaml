@@ -98,6 +98,7 @@
                 <Button Content="Default color" Click="DefaultColor_Click" DockPanel.Dock="Right" Padding="10,5" Margin="8,0,0,0"/>
                 <TextBox x:Name="HexColor" MaxLength="7" Padding="6" TextChanged="Hex_Changed"/>
             </DockPanel>
+            <Grid x:Name="RecentColorsPanel" Margin="0,8,0,0" Visibility="Collapsed"/>
             <TextBlock x:Name="ColorError" Text="Enter a color in #RRGGBB format." Foreground="#FFB00020" Visibility="Collapsed" Margin="0,4,0,0"/>
             <TextBlock Text="Application opacity" FontSize="16" FontWeight="SemiBold" Margin="0,20,0,8"/>
             <DockPanel>

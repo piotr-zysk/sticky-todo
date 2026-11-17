@@ -11,6 +11,7 @@ public class AppearanceSettings
     int _zoomPercent = 100;
 
     public string BackgroundColor { get; set; } = "#F9EDB5";
+    public List<string> RecentColors { get; set; } = new();
     public double Opacity { get; set; } = 1;
     public int ItemDeleteRetentionSeconds
     {
@@ -33,6 +34,28 @@ public class AppearanceSettings
         get => _zoomPercent;
         set => _zoomPercent = Math.Clamp(value, 50, 150);
     }
+}
+
+public static class ColorHelper
+{
+    public const int MaxRecent = 4;
+
+    public static Color ForegroundFor(Color color) =>
+        color.R * 0.299 + color.G * 0.587 + color.B * 0.114 < 140 ? Colors.White : Color.FromRgb(53, 50, 37);
+
+    public static string? Normalize(string? value)
+    {
+        if (value is not { Length: 7 } || value[0] != '#' ||
+            !uint.TryParse(value.AsSpan(1), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out _))
+            return null;
+        return value.ToUpperInvariant();
+    }
+
+    public static List<string> Sanitize(IEnumerable<string>? colors) =>
+        (colors ?? []).Select(Normalize).OfType<string>().Distinct().Take(MaxRecent).ToList();
+
+    public static List<string> Remember(IEnumerable<string>? colors, string color) =>
+        Sanitize((Normalize(color) is { } c ? new[] { c } : Array.Empty<string>()).Concat(colors ?? []));
 }
 
 public static class Zoom

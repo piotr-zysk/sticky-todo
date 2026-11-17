@@ -1,5 +1,13 @@
 # Version history
 
+## 2.5.1 — 2026-11-17
+
+- Fix recent color boxes: clicks reliably apply the color, no size change or text border on click, and the 4 remembered colors now span the full row width.
+
+## 2.5.0 — 2026-11-17
+
+- Remember the last 4 unique saved background colors and show them as selectable color boxes in Settings; click a box to apply it, or select its text and press Ctrl+C to copy.
+
 ## 2.4.0 — 2026-11-17
 
 - Replace the zoom select box in Settings with a 50–150% slider styled like the opacity slider.
