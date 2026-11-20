@@ -29,6 +29,7 @@ public partial class DetailsWindow : Window
         InitializeComponent();
         DataContext = task;
         _coordinator = coordinator;
+        SettingsButton.IsEnabled = coordinator != null;
         if (coordinator != null) ChildView.Configure(coordinator, task.Children, task.Id);
         _session = session;
         Editor.Text = session.Text;
@@ -91,6 +92,14 @@ public partial class DetailsWindow : Window
         Editor.IsReadOnly = blocked;
         ChildView.IsEnabled = !blocked && !pending;
         AddChildButton.IsEnabled = !blocked && !pending;
+        SettingsButton.IsEnabled = _coordinator != null && !blocked && !pending;
+    }
+
+    void Settings_Click(object sender, RoutedEventArgs e)
+    {
+        e.Handled = true;
+        if (!IsSyncing && SettingsButton.IsEnabled)
+            _coordinator?.ShowWindowSettings(this, (TaskItem)DataContext);
     }
 
     void AddChild_Click(object sender, RoutedEventArgs e) => ChildView.ToggleAddPanel();

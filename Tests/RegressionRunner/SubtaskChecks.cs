@@ -261,10 +261,8 @@ static partial class Program
             var parentContainer = (ListBoxItem)Find<ListBox>(main, "TaskList").ItemContainerGenerator.ContainerFromItem(root);
             var parentButton = VisualChild<Button>(parentContainer)!;
             parentButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Check(note.IsListView && Notes(main).Count == 1 && editor.Text == "Pending parent text" &&
-                  !File.Exists(Storage.DetailsPath(root.Id)),
-                  "clicking the list icon switches an existing text window to subtasks without saving or losing pending text");
-            note.Close();
+            Check(!note.IsVisible && Notes(main).Count == 0 && Storage.LoadDetails(root.Id) == "Pending parent text",
+                  "clicking the list icon again closes the existing text window and saves pending text");
             parentButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             note = Notes(main)[root.Id];
             listSwitchIcon = Find<System.Windows.Shapes.Path>(note, "ViewIcon");
@@ -283,8 +281,12 @@ static partial class Program
             PumpDispatcher(TimeSpan.FromMilliseconds(20));
             var childContainer = (ListBoxItem)Find<ListBox>(view, "TaskList").ItemContainerGenerator.ContainerFromItem(child);
             VisualChild<Button>(childContainer)!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Check(!Notes(main).ContainsKey(child.Id) && Storage.LoadDetails(child.Id) == "Pending child text",
+                  "nested list icons toggle existing windows closed and save pending text");
+            VisualChild<Button>(childContainer)!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            childNote = Notes(main)[child.Id];
             Check(childNote.IsListView && Find<TextBox>(childNote, "Editor").Text == "Pending child text",
-                  "list icons inside subtask lists open nested lists and retain pending text");
+                  "nested list icons reopen child lists with saved text");
             int warnings = 0;
             SetCompletionAnswer(main, (_, count) => { warnings++; Check(count == 2, "confirmation counts unfinished descendants recursively"); return false; });
             var beforeCancel = root.UpdatedAt;

@@ -63,16 +63,22 @@ public static class Storage
 
     public static AppearanceSettings LoadSettings()
     {
+        static AppearanceSettings ReadSettings(string path)
+        {
+            var settings = Deser.Deserialize<AppearanceSettings>(File.ReadAllText(path)) ?? new();
+            settings.WindowBackgroundColors = settings.WindowBackgroundColors;
+            return settings;
+        }
         try
         {
             var legacyPath = Path.Combine(Dir, "settings.yaml");
             if (!File.Exists(SettingsPath) && File.Exists(legacyPath))
             {
                 try { File.Move(legacyPath, SettingsPath); }
-                catch { return Deser.Deserialize<AppearanceSettings>(File.ReadAllText(legacyPath)) ?? new(); }
+                catch { return ReadSettings(legacyPath); }
             }
             return File.Exists(SettingsPath)
-                ? Deser.Deserialize<AppearanceSettings>(File.ReadAllText(SettingsPath)) ?? new()
+                ? ReadSettings(SettingsPath)
                 : new();
         }
         catch { return new(); }

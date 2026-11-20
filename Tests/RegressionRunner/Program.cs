@@ -41,6 +41,7 @@ static partial class Program
             CheckSubtaskStorage();
             CheckSubtaskMerging();
             CheckSubtaskWindows();
+            CheckWindowColors();
             Console.WriteLine("All regression checks passed.");
             return 0;
         }
@@ -556,7 +557,9 @@ static partial class Program
             var note = windows[task.Id];
             Check(note.ResizeMode == ResizeMode.CanResize && note.MinWidth == 240 && note.MinHeight == 180, "notes support resizing with minimum dimensions");
             open.Invoke(main, new object[] { task });
-            Check(windows.Count == 1 && ReferenceEquals(windows[task.Id], note), "repeated opening reuses the window");
+            Check(windows.Count == 0 && !note.IsVisible, "clicking the same task again closes its window");
+            open.Invoke(main, new object[] { task });
+            note = windows[task.Id];
             open.Invoke(main, new object[] { tasks[1] });
             Check(windows.Count == 2, "different tasks can have notes open simultaneously");
             windows[tasks[1].Id].Close();

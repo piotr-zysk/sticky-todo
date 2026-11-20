@@ -12,6 +12,27 @@ public class AppearanceSettings
 
     public string BackgroundColor { get; set; } = "#F9EDB5";
     public List<string> RecentColors { get; set; } = new();
+    Dictionary<string, string> _windowBackgroundColors = new();
+    public Dictionary<string, string> WindowBackgroundColors
+    {
+        get => _windowBackgroundColors;
+        set
+        {
+            _windowBackgroundColors = new();
+            if (value == null) return;
+            foreach (var pair in value)
+                if (Guid.TryParse(pair.Key, out var id) && id != Guid.Empty && ColorHelper.Normalize(pair.Value) is { } color)
+                    _windowBackgroundColors[id.ToString("N")] = color;
+        }
+    }
+
+    public AppearanceSettings Copy()
+    {
+        var copy = (AppearanceSettings)MemberwiseClone();
+        copy.RecentColors = ColorHelper.Sanitize(RecentColors);
+        copy.WindowBackgroundColors = WindowBackgroundColors;
+        return copy;
+    }
     public double Opacity { get; set; } = 1;
     public int ItemDeleteRetentionSeconds
     {

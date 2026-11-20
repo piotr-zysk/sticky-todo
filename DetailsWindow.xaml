@@ -18,7 +18,7 @@
     </Window.Template>
     <DockPanel x:Name="RootPanel" Margin="5">
         <Grid x:Name="HeaderBar" DockPanel.Dock="Top" Height="30" MouseLeftButtonDown="Header_MouseLeftButtonDown">
-            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
             <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="7,0" FontWeight="SemiBold"/>
             <Button x:Name="AddChildButton" Grid.Column="1" Width="30" Content="+" Visibility="Collapsed" Background="Transparent"
                     Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}" BorderThickness="0" Cursor="Hand"
@@ -59,7 +59,21 @@
                     </Path>
                 </Grid>
             </Button>
-            <Button Grid.Column="4" Width="30" Content="&#x2715;" Background="Transparent" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}"
+            <Button x:Name="SettingsButton" Grid.Column="4" Width="30" Background="Transparent" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}"
+                    BorderThickness="0" Cursor="Hand" ToolTip="Settings" AutomationProperties.Name="Settings" Click="Settings_Click">
+                <StackPanel VerticalAlignment="Center">
+                    <StackPanel.RenderTransform>
+                        <TranslateTransform Y="2"/>
+                    </StackPanel.RenderTransform>
+                    <StackPanel.LayoutTransform>
+                        <ScaleTransform ScaleX="0.7" ScaleY="0.7"/>
+                    </StackPanel.LayoutTransform>
+                    <Ellipse Width="3" Height="3" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                    <Ellipse Width="3" Height="3" Margin="0,3" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                    <Ellipse Width="3" Height="3" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                </StackPanel>
+            </Button>
+            <Button Grid.Column="5" Width="30" Content="&#x2715;" Background="Transparent" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}"
                     BorderThickness="0" Cursor="Hand" ToolTip="Close details" AutomationProperties.Name="Close details" Click="Close_Click"/>
         </Grid>
         <Grid>

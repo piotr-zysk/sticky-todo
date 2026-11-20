@@ -366,6 +366,7 @@ public partial class MainWindow : Window
             pair.Value.Replace(text);
             if (_detailsWindows.TryGetValue(pair.Key, out var note)) note.RefreshTask(task, text);
         }
+        RefreshWindowAppearance();
         RefreshCompletionLocks();
     }
 
@@ -390,7 +391,7 @@ public partial class MainWindow : Window
                 _detailsSessions.Add(task.Id, session);
             }
             var note = new DetailsWindow(task, session, this) { Owner = this, WindowStartupLocation = WindowStartupLocation.Manual };
-            note.ApplyAppearance(Background, HeaderBar.Background, Foreground, Opacity, _zoom);
+            ApplyWindowAppearance(note, task);
             if (task.HasSubtasks) note.ShowSubtasks();
             _detailsWindows.Add(task.Id, note);
             note.SetCompletionState(task.IsBlocked, task.IsDone);
@@ -498,8 +499,7 @@ public partial class MainWindow : Window
         TaskView.ApplyAppearance(Background, Foreground, settings.BoldHighPriority);
         Opacity = settings.Opacity;
         ApplyZoom(settings.ZoomPercent / 100.0);
-        foreach (var note in _detailsWindows.Values)
-            note.ApplyAppearance(Background, HeaderBar.Background, Foreground, Opacity, _zoom);
+        RefreshWindowAppearance();
         foreach (var pair in _detailsSessions.ToList())
         {
             if (pair.Value.AutoSaveIntervalSeconds == settings.DetailsAutoSaveIntervalSeconds) continue;
@@ -507,6 +507,71 @@ public partial class MainWindow : Window
             if (_detailsWindows.TryGetValue(pair.Key, out var note)) note.RescheduleAutoSave();
         }
         UpdateListHeight();
+    }
+
+    string ResolveWindowColor(TaskItem task, bool inherit = false)
+    {
+        var tasks = AllTasks.ToDictionary(t => t.Id);
+        var current = inherit ? task.ParentId : task.Id;
+        var visited = new HashSet<Guid>();
+        while (current is { } id && visited.Add(id))
+        {
+            if (_settings.WindowBackgroundColors.TryGetValue(id.ToString("N"), out var value) && ColorHelper.Normalize(value) is { } color)
+                return color;
+            current = tasks.TryGetValue(id, out var item) ? item.ParentId : null;
+        }
+        return _settings.BackgroundColor;
+    }
+
+    void ApplyWindowAppearance(DetailsWindow note, TaskItem task)
+    {
+        var value = ResolveWindowColor(task);
+        if (value == _settings.BackgroundColor)
+        {
+            note.ApplyAppearance(Background, HeaderBar.Background, Foreground, Opacity, _zoom);
+            return;
+        }
+        var color = (Color)ColorConverter.ConvertFromString(value);
+        var background = new SolidColorBrush(color);
+        var header = new SolidColorBrush(Color.FromRgb((byte)(color.R * 0.95), (byte)(color.G * 0.95), (byte)(color.B * 0.95)));
+        note.ApplyAppearance(background, header, new SolidColorBrush(ColorHelper.ForegroundFor(color)), Opacity, _zoom);
+    }
+
+    void RefreshWindowAppearance()
+    {
+        foreach (var note in _detailsWindows.Values)
+            ApplyWindowAppearance(note, (TaskItem)note.DataContext);
+    }
+
+    internal void ShowWindowSettings(DetailsWindow owner, TaskItem task)
+    {
+        if (_syncInProgress || _closeInProgress || task.IsBlocked || task.IsDone) return;
+        var original = _settings;
+        var key = task.Id.ToString("N");
+        AppearanceSettings Candidate(string? color)
+        {
+            var candidate = original.Copy();
+            if (color == null) candidate.WindowBackgroundColors.Remove(key);
+            else candidate.WindowBackgroundColors[key] = color;
+            return candidate;
+        }
+        var dialog = new WindowColorSettingsWindow(
+            original.WindowBackgroundColors.GetValueOrDefault(key), ResolveWindowColor(task, inherit: true),
+            color => ApplyAppearance(Candidate(color)),
+            color =>
+            {
+                var candidate = Candidate(color);
+                Storage.SaveSettings(candidate);
+                ApplyAppearance(candidate);
+            }) { Owner = owner };
+        try
+        {
+            if (dialog.ShowDialog() == true) return;
+        }
+        finally
+        {
+            if (dialog.DialogResult != true) ApplyAppearance(original);
+        }
     }
 
     void ApplyZoom(double zoom)

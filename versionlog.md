@@ -1,5 +1,13 @@
 # Version history
 
+## 2.10.1 — 2026-11-20
+
+- Match details and subtask window settings to the main window's three-dot icon and Settings label.
+
+## 2.10.0 — 2026-11-20
+
+- Add local background color settings for details and subtask windows, inherited by descendant windows unless they have their own color. Clear restores inheritance.
+
 ## 2.9.0 — 2026-11-20
 
 - Store settings in `_settings.yaml` and migrate the legacy `settings.yaml` file on load.

@@ -19,6 +19,7 @@ public partial class SettingsWindow : Window
         Settings = new()
         {
             BackgroundColor = settings.BackgroundColor,
+            WindowBackgroundColors = settings.WindowBackgroundColors,
             RecentColors = ColorHelper.Sanitize(settings.RecentColors),
             Opacity = settings.Opacity,
             ItemDeleteRetentionSeconds = settings.ItemDeleteRetentionSeconds,
@@ -262,7 +263,7 @@ public partial class SettingsWindow : Window
 
     void Reset_Click(object sender, RoutedEventArgs e)
     {
-        Settings = new() { RecentColors = Settings.RecentColors };
+        Settings = new() { RecentColors = Settings.RecentColors, WindowBackgroundColors = Settings.WindowBackgroundColors };
         SetControls();
         _preview(Settings);
     }
