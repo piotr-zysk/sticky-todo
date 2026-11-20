@@ -26,6 +26,8 @@ static partial class Program
             CheckDetailsSaving();
             CheckConfigurableAutoSave();
             CheckDetailsCopy();
+            CheckMarkdownRendering();
+            CheckMarkdownWindow();
             CheckDetailsIndicatorsAndSettings();
             CheckDetailsFileFailures();
             CheckTaskStorageMigration();

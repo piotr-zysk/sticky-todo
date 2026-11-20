@@ -18,7 +18,7 @@
     </Window.Template>
     <DockPanel x:Name="RootPanel" Margin="5">
         <Grid x:Name="HeaderBar" DockPanel.Dock="Top" Height="30" MouseLeftButtonDown="Header_MouseLeftButtonDown">
-            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
             <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="7,0" FontWeight="SemiBold"/>
             <Button x:Name="AddChildButton" Grid.Column="1" Width="30" Content="+" Visibility="Collapsed" Background="Transparent"
                     Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}" BorderThickness="0" Cursor="Hand"
@@ -28,7 +28,23 @@
                 <Path Width="14" Height="14" Stretch="Uniform" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}" StrokeThickness="1" Opacity="0.7"
                       Data="M 5,1 L 13,1 13,11 5,11 Z M 3,3 L 1,3 1,13 10,13 10,11"/>
             </Button>
-            <Button x:Name="ViewButton" Grid.Column="3" Width="30" Background="Transparent" BorderThickness="0" Cursor="Hand"
+            <ToggleButton x:Name="MarkdownButton" Grid.Column="3" Content="MD" Width="30" Cursor="Hand"
+                          Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}"
+                          ToolTip="Show Markdown preview" AutomationProperties.Name="Markdown preview" Click="Markdown_Click">
+                <ToggleButton.Template>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="ToggleBorder" Background="Transparent" BorderBrush="{TemplateBinding Foreground}" BorderThickness="0" CornerRadius="3" Margin="1,3">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True"><Setter TargetName="ToggleBorder" Property="BorderThickness" Value="1"/></Trigger>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ToggleBorder" Property="BorderThickness" Value="1"/></Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="ToggleBorder" Property="BorderThickness" Value="1"/></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </ToggleButton.Template>
+            </ToggleButton>
+            <Button x:Name="ViewButton" Grid.Column="4" Width="30" Background="Transparent" BorderThickness="0" Cursor="Hand"
                     ToolTip="Show subtasks" AutomationProperties.Name="Show subtasks" Click="View_Click">
                 <Grid Width="14" Height="14">
                     <Path x:Name="ViewIcon" Stretch="Uniform" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}"
@@ -59,7 +75,7 @@
                     </Path>
                 </Grid>
             </Button>
-            <Button x:Name="SettingsButton" Grid.Column="4" Width="30" Background="Transparent" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}"
+            <Button x:Name="SettingsButton" Grid.Column="5" Width="30" Background="Transparent" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}"
                     BorderThickness="0" Cursor="Hand" ToolTip="Settings" AutomationProperties.Name="Settings" Click="Settings_Click">
                 <StackPanel VerticalAlignment="Center">
                     <StackPanel.RenderTransform>
@@ -73,11 +89,16 @@
                     <Ellipse Width="3" Height="3" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                 </StackPanel>
             </Button>
-            <Button Grid.Column="5" Width="30" Content="&#x2715;" Background="Transparent" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}"
+            <Button Grid.Column="6" Width="30" Content="&#x2715;" Background="Transparent" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}"
                     BorderThickness="0" Cursor="Hand" ToolTip="Close details" AutomationProperties.Name="Close details" Click="Close_Click"/>
         </Grid>
         <Grid>
             <local:TaskListControl x:Name="ChildView" Visibility="Collapsed"/>
+            <FlowDocumentScrollViewer x:Name="MarkdownPreview" Visibility="Collapsed" IsToolBarVisible="False" IsSelectionEnabled="True"
+                                      Background="Transparent" BorderThickness="0"
+                                      Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}"
+                                      VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                                      AutomationProperties.Name="Markdown details preview"/>
             <TextBox x:Name="Editor" AcceptsReturn="True" AcceptsTab="True" TextWrapping="Wrap"
                  VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                  Background="Transparent" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}"

@@ -20,6 +20,7 @@ public partial class DetailsWindow : Window
     public bool IsDocked { get; private set; } = true;
     public Action? PlacementRequested { get; set; }
     public bool IsListView { get; private set; }
+    public bool IsMarkdownView => MarkdownButton.IsChecked == true;
     double _textWidth = 800, _textHeight = 300, _listWidth = 800;
 
     public DetailsWindow(TaskItem task, DetailsSaveSession session) : this(task, session, null) { }
@@ -54,7 +55,7 @@ public partial class DetailsWindow : Window
         Loaded += (_, _) =>
         {
             if (IsListView) ChildView.MoveFocus(new TraversalRequest(FocusNavigationDirection.First));
-            else Editor.Focus();
+            else FocusDetails();
         };
         PreviewMouseDown += (_, e) => { if (IsListView) ChildView.Window_PreviewMouseDown(this, e); };
         PreviewTextInput += (_, e) => { if (IsListView && ChildView.IsEnabled) ChildView.Window_PreviewTextInput(this, e); };
@@ -119,9 +120,10 @@ public partial class DetailsWindow : Window
         else { _textWidth = Width; _textHeight = Height; }
         IsListView = !IsListView;
         SizeToContent = SizeToContent.Manual;
-        Editor.Visibility = IsListView ? Visibility.Collapsed : Visibility.Visible;
+        UpdateTextView();
         ChildView.Visibility = IsListView ? Visibility.Visible : Visibility.Collapsed;
         CopyButton.Visibility = IsListView ? Visibility.Collapsed : Visibility.Visible;
+        MarkdownButton.Visibility = IsListView ? Visibility.Collapsed : Visibility.Visible;
         AddChildButton.Visibility = IsListView ? Visibility.Visible : Visibility.Collapsed;
         RootPanel.Margin = IsListView ? new Thickness(0) : new Thickness(5);
         HeaderBar.Height = IsListView ? 32 : 30;
@@ -134,7 +136,30 @@ public partial class DetailsWindow : Window
         Width = Math.Min(SystemParameters.WorkArea.Width, Math.Max(MinWidth, IsListView ? _listWidth : _textWidth));
         if (IsListView) SizeToContent = SizeToContent.Height;
         else Height = Math.Min(SystemParameters.WorkArea.Height, _textHeight);
-        if (IsListView) ChildView.MoveFocus(new TraversalRequest(FocusNavigationDirection.First)); else Editor.Focus();
+        if (IsListView) ChildView.MoveFocus(new TraversalRequest(FocusNavigationDirection.First)); else FocusDetails();
+    }
+
+    void Markdown_Click(object sender, RoutedEventArgs e)
+    {
+        e.Handled = true;
+        UpdateTextView();
+        FocusDetails();
+    }
+
+    void UpdateTextView()
+    {
+        Editor.Visibility = !IsListView && !IsMarkdownView ? Visibility.Visible : Visibility.Collapsed;
+        MarkdownPreview.Visibility = !IsListView && IsMarkdownView ? Visibility.Visible : Visibility.Collapsed;
+        MarkdownButton.ToolTip = IsMarkdownView ? "Show standard editor" : "Show Markdown preview";
+        if (!IsListView && IsMarkdownView) RenderMarkdown();
+    }
+
+    void RenderMarkdown() => MarkdownPreview.Document = MarkdownDetailsRenderer.Render(Editor.Text, Foreground);
+
+    void FocusDetails()
+    {
+        if (IsMarkdownView) MarkdownPreview.Focus();
+        else Editor.Focus();
     }
 
     void SaveAndSchedule()
@@ -166,6 +191,7 @@ public partial class DetailsWindow : Window
         _replacing = true;
         try { Editor.Text = text; }
         finally { _replacing = false; }
+        if (!IsListView && IsMarkdownView) RenderMarkdown();
     }
 
     public void DiscardAndClose()
@@ -200,6 +226,8 @@ public partial class DetailsWindow : Window
         Background = background;
         HeaderBar.Background = header;
         Foreground = foreground;
+        if (MarkdownPreview.Document != null) MarkdownPreview.Document.Foreground = foreground;
+        if (!IsListView && IsMarkdownView) RenderMarkdown();
         ChildView.ApplyAppearance(background, foreground, _coordinator?.Settings.BoldHighPriority ?? false);
         Opacity = opacity;
         ApplyZoom(zoom);
@@ -229,7 +257,7 @@ public partial class DetailsWindow : Window
     {
         if (e.OriginalSource is DependencyObject source)
             for (var element = source; element != null; element = VisualTreeHelper.GetParent(element))
-                if (element is System.Windows.Controls.Button) return;
+                if (element is System.Windows.Controls.Primitives.ButtonBase) return;
         if (e.LeftButton == MouseButtonState.Pressed)
         {
             IsDocked = false;

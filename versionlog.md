@@ -1,5 +1,9 @@
 # Version history
 
+## 2.11.0 — 2026-11-20
+
+- Add an MD toggle in the details header for a selectable Markdown preview, including tables and task checkboxes. Preserve the original text for editing, copying, storage, and sync.
+
 ## 2.10.1 — 2026-11-20
 
 - Match details and subtask window settings to the main window's three-dot icon and Settings label.
