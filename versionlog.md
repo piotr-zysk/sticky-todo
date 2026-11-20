@@ -1,5 +1,9 @@
 # Version history
 
+## 2.7.0 — 2026-11-20
+
+- Double the default width of details and subtask windows to 800 px.
+
 ## 2.6.0 — 2026-11-17
 
 - Open details windows below the main window (above when there is no room) and keep them from overlapping the main window and each other.

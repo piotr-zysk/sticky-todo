@@ -20,7 +20,7 @@ public partial class DetailsWindow : Window
     public bool IsDocked { get; private set; } = true;
     public Action? PlacementRequested { get; set; }
     public bool IsListView { get; private set; }
-    double _textWidth = 400, _textHeight = 300, _listWidth = 400;
+    double _textWidth = 800, _textHeight = 300, _listWidth = 800;
 
     public DetailsWindow(TaskItem task, DetailsSaveSession session) : this(task, session, null) { }
 
