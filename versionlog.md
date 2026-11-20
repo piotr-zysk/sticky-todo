@@ -1,5 +1,9 @@
 # Version history
 
+## 2.8.0 — 2026-11-20
+
+- Close a task's details or subtask window when its row button is clicked again.
+
 ## 2.7.0 — 2026-11-20
 
 - Double the default width of details and subtask windows to 800 px.

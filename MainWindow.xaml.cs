@@ -373,9 +373,7 @@ public partial class MainWindow : Window
     {
         if (_detailsWindows.TryGetValue(task.Id, out var existing))
         {
-            if (existing.WindowState == WindowState.Minimized) existing.WindowState = WindowState.Normal;
-            if (task.HasSubtasks) existing.ShowSubtasks();
-            existing.Activate();
+            existing.Close();
             return;
         }
         try
