@@ -73,7 +73,7 @@ Storage is based on the executable's directory (`Environment.ProcessPath`, falli
 
 ```text
 <executable directory>/
-  settings.yaml
+  _settings.yaml
   tasks/
     tasks.yaml              # active task metadata, in local display order
     task-archive.yaml       # completed task metadata
@@ -90,6 +90,7 @@ Storage is based on the executable's directory (`Environment.ProcessPath`, falli
 - The task list displays only `HH:mm` for a task with an explicit due time less than 24 hours after the current local wall-clock time, including already-overdue timed tasks; otherwise it displays only `yyyy-MM-dd`. This is presentation-only and does not change due-date serialization.
 - Task title, priority, completion state, and due changes advance `UpdatedAt`. `TaskItem.NextTimestamp` guarantees advancement even when the system clock has not advanced. Loading DTOs restores the persisted timestamp after applying task fields; do not accidentally timestamp imports as fresh edits.
 - Startup migrates legacy `tasks.yaml` and `task-archive.yaml` from the executable root into `tasks/`. If old and new copies both exist, initialization fails rather than selecting one silently.
+- Settings are stored as `_settings.yaml` beside the executable. On first load, a legacy `settings.yaml` is moved there when `_settings.yaml` does not already exist.
 - Record migration repairs missing/duplicate IDs within each metadata file, infers missing timestamps from existing file/details/completion times, and resolves an ID present in active and archived data by keeping the newer record (archive wins ties).
 - Task YAML read errors attempt a `.bad` backup and propagate; startup reports the failure. Settings load errors fall back to defaults. Do not silently replace unreadable task data with an empty list.
 - Writes use temporary files and replacement. Multi-file task saves use a durable undo journal: write previous contents, apply changes, then delete the journal. Recovery restores previous contents after failure or interrupted execution. Preserve transaction boundaries, recovery order, and journal path validation.
@@ -127,7 +128,7 @@ Storage is based on the executable's directory (`Environment.ProcessPath`, falli
 - Drive v3 handles discovery and media download. Drive v2 metadata provides the file ETag, and the v2 media update endpoint uses `If-Match`. A media-download ETag is not a file-update token. Do not replace this with unconditional v3 uploads or silently accept missing ETags.
 - Multiple matching folders/files are an error. Do not pick an arbitrary duplicate. Use the same desktop OAuth client and Google account across computers because `drive.file` scope limits file visibility.
 - On close, remote sync failure offers Retry, Close anyway, or Cancel close. Local read/save failures keep the app open and must not offer Close anyway. Preserve guards against overlapping sync/close operations.
-- Google configuration lives under `%LOCALAPPDATA%\StickyTodo\Google`: `client.json`, `connection.json`, and encrypted token files under `tokens/`. Access/refresh tokens use Windows DPAPI with `CurrentUser`, never portable task files or `settings.yaml`. Sign-out clears cached tokens without deleting tasks. Last successful sync is tracked per account.
+- Google configuration lives under `%LOCALAPPDATA%\StickyTodo\Google`: `client.json`, `connection.json`, and encrypted token files under `tokens/`. Access/refresh tokens use Windows DPAPI with `CurrentUser`, never portable task files or `_settings.yaml`. Sign-out clears cached tokens without deleting tasks. Last successful sync is tracked per account.
 
 ## Finishing a change
 

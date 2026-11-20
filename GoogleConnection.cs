@@ -157,7 +157,7 @@ public sealed class GoogleConnection
     }
 }
 
-// Google refresh/access tokens never live in settings.yaml or the portable tasks folder.
+// Google refresh/access tokens never live in _settings.yaml or the portable tasks folder.
 public sealed class ProtectedTokenStore(string directory) : IDataStore
 {
     string FilePath<T>(string key) => Path.Combine(directory,

@@ -1,5 +1,9 @@
 # Version history
 
+## 2.9.0 — 2026-11-20
+
+- Store settings in `_settings.yaml` and migrate the legacy `settings.yaml` file on load.
+
 ## 2.8.0 — 2026-11-20
 
 - Close a task's details or subtask window when its row button is clicked again.

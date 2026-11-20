@@ -31,7 +31,7 @@ public static class Storage
     public static readonly string TasksPath = Path.Combine(TasksDirectory, "tasks.yaml");
     public static readonly string ArchivePath = Path.Combine(TasksDirectory, "task-archive.yaml");
     public static readonly string DeletionsPath = Path.Combine(TasksDirectory, "subtask-deletions.yaml");
-    public static readonly string SettingsPath = Path.Combine(Dir, "settings.yaml");
+    public static readonly string SettingsPath = Path.Combine(Dir, "_settings.yaml");
 
     public static void InitializeTaskStorage(string? applicationDirectory = null)
     {
@@ -65,6 +65,12 @@ public static class Storage
     {
         try
         {
+            var legacyPath = Path.Combine(Dir, "settings.yaml");
+            if (!File.Exists(SettingsPath) && File.Exists(legacyPath))
+            {
+                try { File.Move(legacyPath, SettingsPath); }
+                catch { return Deser.Deserialize<AppearanceSettings>(File.ReadAllText(legacyPath)) ?? new(); }
+            }
             return File.Exists(SettingsPath)
                 ? Deser.Deserialize<AppearanceSettings>(File.ReadAllText(SettingsPath)) ?? new()
                 : new();

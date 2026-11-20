@@ -211,9 +211,17 @@ static partial class Program
     static void CheckSettingsPersistence()
     {
         string path = Storage.SettingsPath;
+        string legacyPath = Path.Combine(Path.GetDirectoryName(path)!, "settings.yaml");
         var previous = Backup(path);
+        var previousLegacy = Backup(legacyPath);
         try
         {
+            Restore(path, null);
+            File.WriteAllText(legacyPath, "backgroundColor: '#AABBCC'\nopacity: 0.8\n");
+            var migrated = Storage.LoadSettings();
+            Check(migrated.BackgroundColor == "#AABBCC" && Math.Abs(migrated.Opacity - 0.8) < 0.001 &&
+                  File.Exists(path) && !File.Exists(legacyPath), "legacy settings.yaml migrates to _settings.yaml");
+
             File.WriteAllText(path, "backgroundColor: '#AABBCC'\nopacity: 0.8\n");
             var legacy = Storage.LoadSettings();
             Check(legacy.ItemDeleteRetentionSeconds == 5 && legacy.MaxItemsToDisplay == 10 && !legacy.BoldHighPriority && legacy.DetailsAutoSaveIntervalSeconds == 60,
@@ -247,6 +255,7 @@ static partial class Program
         finally
         {
             Restore(path, previous);
+            Restore(legacyPath, previousLegacy);
         }
     }
 
